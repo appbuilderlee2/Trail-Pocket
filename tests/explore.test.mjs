@@ -6,7 +6,7 @@ import {WORLD,visibleTiles,viewportBounds,validateArea,overlaps,contains} from '
 import {OnlineMap} from '../online-map.mjs';
 
 test('visible tile grid covers only current viewport and indices remain valid',()=>{
-  for(const point of [[138.82,-34.68],[114.17,22.3],[0,0],[-179,84],[179,-84]])for(const units of [.15,2,80,30000]){
+  for(const point of [[138.82,-34.68],[114.17,22.3],[0,0],[-179,84],[179,-84]])for(const units of [.15,2,80,30000,200000]){
     const tiles=visibleTiles(project(point),units,1000,700);assert.ok(tiles.length>0&&tiles.length<80);
     for(const t of tiles){assert.ok(t.x>=0&&t.x<2**t.z&&t.y>=0&&t.y<2**t.z);assert.ok(t.left<1001&&t.left+t.size> -1&&t.top<701&&t.top+t.size> -1);assert.ok(t.z>=0&&t.z<=19);}
   }

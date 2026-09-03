@@ -7,7 +7,7 @@ export class TrailMap{
  setDraft(segments){this.draft=segments;this.draw();}
  centerPoint(){return unproject(this.center);}
  screen(p){return [(p[0]-this.center[0])/this.units+this.w/2,(p[1]-this.center[1])/this.units+this.h/2];}
- zoom(f,x=this.w/2,y=this.h/2){const u=Math.max(.15,Math.min(30000,this.units*f));this.center[0]+=(x-this.w/2)*(this.units-u);this.center[1]+=(y-this.h/2)*(this.units-u);this.units=u;this.draw();}
+ zoom(f,x=this.w/2,y=this.h/2){const u=Math.max(.15,Math.min(200000,this.units*f));this.center[0]+=(x-this.w/2)*(this.units-u);this.center[1]+=(y-this.h/2)*(this.units-u);this.units=u;this.draw();}
  setRoute(route,base,fit=true){this.route=route;this.projected=route?.segments.map(s=>s.map(project))||[];this.setBase(base);if(fit)this.fit();else this.draw();}
  makeLayer(base){const shapes=[];for(const e of base?.data.elements||[]){let raw=[];if(e.geometry)raw=[e.geometry];else if(e.members)raw=e.members.filter(m=>m.type==='way'&&m.geometry).map(m=>m.geometry);let paths=raw.filter(p=>p.length>1&&p.every(x=>x&&Number.isFinite(x.lon)&&Number.isFinite(x.lat))).map(p=>p.map(x=>[x.lon,x.lat]));if(e.members)paths=joinWays(paths);if(paths.length)shapes.push({tags:e.tags||{},paths:paths.map(p=>p.map(project))});}return {bounds:base?.bounds,shapes};}
  setBase(base){this.base=base;this.routeLayer=this.makeLayer(base);this.draw();}
