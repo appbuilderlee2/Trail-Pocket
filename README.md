@@ -1,4 +1,4 @@
-# Trail Pocket PWA v2.2.1
+# Trail Pocket PWA v2.2.2
 
 通用行山地圖 PWA：每次由使用者匯入 GPX／KML，管理多條路線，選擇每條路線需要下載的周邊底圖。
 
