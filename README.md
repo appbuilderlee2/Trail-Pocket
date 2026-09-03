@@ -1,6 +1,17 @@
-# Trail Pocket PWA v2.1.0
+# Trail Pocket PWA v2.2.0
 
 通用行山地圖 PWA：每次由使用者匯入 GPX／KML，管理多條路線，選擇每條路線需要下載的周邊底圖。
+
+## v2.2 地圖瀏覽及自由選區
+
+- 啟動直接進入地圖；不需要先匯入路線。在線可拖動、縮放全球 ±85°緯度地圖，或用「前往位置」選常用地區／輸入經緯度。
+- 「選擇離線範圍」使用中央紫框（畫面各邊內縮 15%），拖動／縮放調整範圍，顯示面積與座標。命名後下載框內道路、步道、水域及林地向量資料；範圍過大會要求放大。每區最多約 150 km²、32 MB，90 秒逾時。
+- 不依賴 GPX；多個區域独立保存至 IndexedDB `areas`。完成後自動預覽實際離線資料，可在「離線下載 → 我的離線區域」重開或刪除。刪除區域不刪路線，刪除路線也不刪區域。
+- 在線完整底圖來自 `https://tile.openstreetmap.org/{z}/{x}/{y}.png`，僅載入使用者當前可見畫面，使用瀏覽器標準 HTTP 快取及 Referer；沒有圖磚預下載或離線圖磚儲存。遵守 https://operations.osmfoundation.org/policies/tiles/ 。
+- 離線下載使用 Overpass 向量資料，**不是上述在線圖磚**。兩種底圖配色、標籤及細節不同；離線不含衛星、等高線或全部地名。在線瀏覽過不代表已下載。服務可能限流或暫時無法載入。
+- 「已下載離線底圖」可在仍有網路時預覽已保存區域；斷網會自動改用可見範圍內已下載的路線底圖及獨立區域。未下載部分留白，不聲稱完整世界地圖已離線。
+- 開啟在線地圖會向 OSM 圖磚服務傳送目前視野；跟隨 GPS 時視野也可能反映附近位置。GPX 檔案及 GPS 原始資料不直接上傳。選區下載會把框內矩形座標送往 Overpass。
+- 資料庫從 v1 安全升級至 v2，只新增 `areas`，保留原有 routes/maps/settings。自動測試包含舊資料遷移及區域獨立刪除。
 
 ## 現有功能
 
@@ -19,7 +30,7 @@
 - Service Worker 儲存完整 App 介面；檢查 App 資源與底圖是否真正完成，不以曾經打開畫面當作離線完成。
 - GPS 位置、精度範圍、與軌跡的距離、舊位置提示、置中及地圖縮放／拖曳。
 - Devils Nose 為可選示範，並非固定唯一可使用地圖。
-- 所有程式、字體及圖示均不需要外部 CDN。底圖只在用戶按下載時才會向 Overpass 請求。
+- 所有程式、字體及圖示均不需要外部 CDN。在線瀏覽會請求可見圖磚；離線底圖只在用戶按下載時才會向 Overpass 請求。
 
 ## 目前交付狀態
 
@@ -31,7 +42,7 @@ GitHub Pages 網址：https://appbuilderlee2.github.io/Trail-Pocket/ 。以 `.gi
 
 這是純靜態 PWA，不需要編譯或後端資料庫。
 
-1. 把 `index.html`、各 `.mjs`、`style.css`、`adventure.css`、`sw.js`、`manifest.webmanifest` 及 `assets` 資料夾原樣放到 HTTPS 靜態網站。`tests`、`package.json` 與說明文件無需上傳到正式網站。
+1. 把 `index.html`、各 `.mjs`、各 `.css`、`sw.js`、`manifest.webmanifest` 及 `assets` 資料夾原樣放到 HTTPS 靜態網站。`tests`、`package.json` 與說明文件無需上傳到正式網站。
 2. GitHub Pages 設定 Source 為 GitHub Actions，由本儲存庫的 workflow 發佈。所有路徑是相對路徑，支援 `https://帳戶.github.io/儲存庫/` 子目錄。
 3. iPhone 用 Safari 開啟已部署網址，按分享 → 加入主畫面。
 4. 從主畫面打開 App，匯入 GPX／KML。到「離線下載」選擇範圍並下載。
