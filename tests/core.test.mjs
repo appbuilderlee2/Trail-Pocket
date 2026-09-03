@@ -1,0 +1,19 @@
+import test from 'node:test';
+import assert from 'node:assert/strict';
+import {readFile} from 'node:fs/promises';
+import {createRequire} from 'node:module';
+import * as core from '../core.mjs';
+const require=createRequire(import.meta.url);
+const {DOMParser}=require('@xmldom/xmldom');
+class Parser{parseFromString(t,m){const d=new DOMParser().parseFromString(t,m);for(const n of [...d.getElementsByTagName('*')])Object.defineProperty(n,'children',{get(){return [...this.childNodes].filter(x=>x.nodeType===1);}});return d;}}
+const parse=(t,name='route.gpx')=>core.parseRoute(t,name,Parser);
+let gpx,kml;
+test('real supplied GPX and KML have matching 299-point geometry',async()=>{gpx=parse(await readFile(new URL('./fixtures/devils.gpx',import.meta.url),'utf8'));kml=parse(await readFile(new URL('./fixtures/devils.kml',import.meta.url),'utf8'),'route.kml');assert.equal(gpx.count,299);assert.equal(gpx.waypoints.length,5);assert.deepEqual(gpx.segments.map(s=>s.map(p=>p.slice(0,2))),kml.segments.map(s=>s.map(p=>p.slice(0,2))));assert.ok(gpx.length>2950&&gpx.length<2955);});
+test('multiple GPX segments preserve gaps instead of adding connecting lines',()=>{const r=parse('<gpx><trk><name>A</name><trkseg><trkpt lat="0" lon="0"/><trkpt lat="0" lon="0.001"/></trkseg><trkseg><trkpt lat="10" lon="10"/><trkpt lat="10" lon="10.001"/></trkseg></trk></gpx>');assert.equal(r.segments.length,2);assert.ok(r.length>200&&r.length<225);});
+test('KML MultiGeometry and gx Track are imported separately',()=>{const r=parse('<kml xmlns="http://www.opengis.net/kml/2.2" xmlns:gx="http://www.google.com/kml/ext/2.2"><Document><name>Test</name><Placemark><MultiGeometry><LineString><coordinates>138,-34,1 138.01,-34,2</coordinates></LineString><LineString><coordinates>139,-35 139.01,-35</coordinates></LineString></MultiGeometry></Placemark><Placemark><gx:Track><gx:coord>138 -34 0</gx:coord><gx:coord>138.001 -34 0</gx:coord></gx:Track></Placemark></Document></kml>','test.kml');assert.equal(r.name,'Test');assert.equal(r.segments.length,3);});
+test('bad, missing, or unsafe input is rejected',()=>{for(const text of ['<!DOCTYPE gpx><gpx/>','<gpx><trk><trkseg><trkpt lat="" lon="0"/><trkpt lat="0" lon="1"/></trkseg></trk></gpx>','<gpx><trk><trkseg><trkpt lat="95" lon="0"/><trkpt lat="0" lon="1"/></trkseg></trk></gpx>','<kml><LineString><coordinates>,1 0,1</coordinates></LineString></kml>','<gpx><wpt lat="0" lon="0"/></gpx>'])assert.throws(()=>parse(text));});
+test('projection round trips across countries',()=>{for(const p of [[138.82,-34.68],[114.17,22.3],[-.12,51.5],[17,83]]){const q=core.unproject(core.project(p));assert.ok(Math.abs(p[0]-q[0])<1e-8&&Math.abs(p[1]-q[1])<1e-8);}});
+test('nearest distance uses line segments',()=>{const s=[[[138,-34],[138.01,-34]]];assert.ok(core.nearestDistance([138.005,-34],s)<.01);const n=core.nearestDistance([138.005,-34.0001],s);assert.ok(n>11&&n<12);});
+test('download bounds cover route and prevent excessive queries',()=>{const s=[[[138.8,-34.68],[138.82,-34.67]]],b=core.bufferedBounds(s,1000);assert.ok(b.west<138.8&&b.east>138.82&&b.south< -34.68&&b.north> -34.67);assert.ok(core.areaKm2(b)<20);assert.match(core.mapQuery(b),/out geom/);assert.throws(()=>core.mapQuery({west:100,east:150,south:-40,north:0}));assert.throws(()=>core.mapQuery({west:NaN,east:2,south:1,north:2}));});
+test('partial API responses never pass offline completion validation',()=>{assert.throws(()=>core.validateMap({elements:[{id:1}],remark:'runtime timeout'}));assert.throws(()=>core.validateMap({elements:[]}));assert.throws(()=>core.validateMap({elements:[null]}));assert.equal(core.validateMap({elements:[{id:1}]}).elements.length,1);});
+test('OSM relation members are stitched into rings',()=>{const paths=[[[0,0],[1,0]],[[1,1],[1,0]],[[0,1],[1,1]],[[0,0],[0,1]]];assert.deepEqual(core.joinWays(paths),[[[0,0],[1,0],[1,1],[0,1],[0,0]]]);});
