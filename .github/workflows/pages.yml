@@ -1,0 +1,46 @@
+name: Deploy Trail Pocket to GitHub Pages
+
+on:
+  push:
+    branches: [main]
+  workflow_dispatch:
+
+permissions:
+  contents: read
+  pages: write
+  id-token: write
+
+concurrency:
+  group: pages
+  cancel-in-progress: true
+
+jobs:
+  deploy:
+    environment:
+      name: github-pages
+      url: ${{ steps.deployment.outputs.page_url }}
+    runs-on: ubuntu-latest
+    steps:
+      - name: Check out source
+        uses: actions/checkout@v4
+
+      - name: Configure Pages
+        uses: actions/configure-pages@v5
+        with:
+          enablement: true
+
+      - name: Prepare static PWA
+        run: |
+          mkdir -p dist/assets
+          cp index.html style.css app.mjs core.mjs storage.mjs map.mjs sw.js manifest.webmanifest dist/
+          cp assets/icon-192.png assets/icon-512.png assets/devils-route.json assets/devils-base.json dist/assets/
+          touch dist/.nojekyll
+
+      - name: Upload Pages artifact
+        uses: actions/upload-pages-artifact@v3
+        with:
+          path: dist
+
+      - name: Deploy to Pages
+        id: deployment
+        uses: actions/deploy-pages@v4
