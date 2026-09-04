@@ -11,4 +11,7 @@ export const removeMap=id=>transaction(['maps'],'readwrite',t=>t.objectStore('ma
 export const removeRoute=id=>transaction(['routes','maps'],'readwrite',t=>{t.objectStore('routes').delete(id);t.objectStore('maps').delete(id);});
 export const importDemo=(route,map)=>transaction(['routes','maps'],'readwrite',t=>{t.objectStore('routes').put(route);t.objectStore('maps').put(map);});
 
+export async function exportAll(){const names=['routes','maps','areas','activities','settings'],entries=await Promise.all(names.map(async name=>[name,await getAll(name)]));return Object.fromEntries(entries);}
+export const restoreAll=data=>transaction(['routes','maps','areas','activities','settings'],'readwrite',t=>{for(const name of ['routes','maps','areas','activities','settings'])for(const value of data[name])t.objectStore(name).put(value);});
+
 export const finishActivity=activity=>transaction(['activities','settings'],'readwrite',t=>{t.objectStore('activities').put(activity);t.objectStore('settings').delete('active-activity');});
