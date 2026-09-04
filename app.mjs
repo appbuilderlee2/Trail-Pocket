@@ -303,7 +303,7 @@ async function refresh() {
   await explore.refresh();
 }
 function mapBadge() {
-  if (geoPdf.isOpen()) return;
+  if (geoPdf.isOpen() && !geoPdf.isOverlay()) return;
   $("mapTitle").textContent = selected?.name || "瀏覽地圖";
   $("mapMeta").textContent = selected
     ? (selected.length / 1000).toFixed(2) +
@@ -329,7 +329,6 @@ async function selectRoute(id) {
     if (serial !== selectSerial) return;
     selected = r;
     selectedMap = b || null;
-    geoPdf.close(false);
     adventure.routeChanged();
     nav("map");
     requestAnimationFrame(() => {
@@ -1057,6 +1056,7 @@ const explore = setupExplore({
   failure,
   formatSize,
   storageInfo,
+  getGeoPdf: () => geoPdf,
 });
 const geoPdf = setupGeoPdf({
   map,
@@ -1067,23 +1067,20 @@ const geoPdf = setupGeoPdf({
   toast,
   failure,
   openMap: (record) => {
-    selected = null;
-    selectedMap = null;
-    adventure.routeChanged();
     nav("map");
-    $("mapTitle").textContent = record.name;
+    $("mapTitle").textContent = selected?.name || record.name;
     $("mapMeta").textContent =
-      `官方 GeoPDF · 第 ${record.pageNumber}/${record.pageCount} 頁 · 完全離線`;
+      `${record.name} · 官方 GeoPDF · 第 ${record.pageNumber}/${record.pageCount} 頁 · 完全離線`;
     $("mapBadge").classList.remove("hide");
     $("mapOptions").disabled = true;
     for (const b of document.querySelectorAll("[data-route-required]"))
       b.disabled = true;
   },
   closeMap: (showMap) => {
-    map.setRoute(null, null, false);
     if (showMap) nav("map");
     mapBadge();
   },
+  onChange: (change) => explore.geoPdfChanged(change),
 });
 async function boot() {
   $("audit").onclick = offlineAudit;
@@ -1093,9 +1090,9 @@ async function boot() {
     storeOK = true;
     await refresh();
     await adventure.init();
+    await geoPdf.init();
     await explore.init();
     await activity.init();
-    await geoPdf.init();
   } catch (e) {
     setBanner(
       "本機儲存無法使用：" + failure(e) + " 請離開私密瀏覽或檢查裝置空間。",
