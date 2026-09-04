@@ -1,4 +1,11 @@
-# Trail Pocket PWA v3.1.2
+# Trail Pocket PWA v3.1.3
+
+## v3.1.3 Map-first activity mode
+
+- Starting an activity now opens a compact 68 px tracker instead of covering the map.
+- While the tracker is collapsed, mobile hides the two top tool rows and bottom navigation.
+- Mobile map controls keep only north and current-position actions; pinch gestures handle zoom.
+- Tap the tracker chevron or Activity tab to restore the full activity sheet and navigation.
 
 ## v3.1.2 Larger mobile map
 
