@@ -1,15 +1,16 @@
-import {areaKm2,mapQuery,validateMap,project,validCoordinate} from './core.mjs';
+import {areaKm2,project,validCoordinate} from './core.mjs';
 import {validateArea,overlaps,contains,placeSearchURL,parsePlaceResults} from './explore-core.mjs';
 import {OnlineMap} from './online-map.mjs';
 import * as store from './storage.mjs';
 import {downloadContours} from './terrain.mjs';
+import {downloadOsmInChunks,assertStorageRoom,PACKAGE_LIMIT_BYTES,MAX_AREA_KM2} from './offline-download.mjs';
 
 export function setupExplore(ctx){
   const $=id=>document.getElementById(id),map=ctx.map;
   let mode='online',selecting=false,ready=false,areas=[],routeMaps=[],timer,serial=0,job=null,lockedBounds=null,tileState={},loadedKey=null,lastSearch=0,searchJob=null;
   const el=(tag,text,cls)=>{const n=document.createElement(tag);if(text!==undefined)n.textContent=text;if(cls)n.className=cls;return n;};
   const button=(text,fn)=>{const b=el('button',text);b.onclick=fn;return b;};
-  document.querySelector('.trail-tools').insertAdjacentHTML('beforebegin',`<div class="explore-tools"><label>底圖 <select id="baseMode"><option value="online">在線完整地圖</option><option value="offline">已下載離線底圖</option></select></label><button id="jumpPlace">前往位置</button><button id="selectArea" class="primary">▣ 選擇離線範圍</button></div><div id="exploreStatus" class="muted" role="status">拖動或縮放，瀏覽其他地區。</div><div id="areaControls" class="area-controls hide"><label>區域名稱 <input id="areaName" maxlength="100" placeholder="例如 Para Wirra 北部"></label><p id="areaSize" role="status"></p><div class="row"><button id="saveArea" class="primary">下載底圖及等高線</button><button id="cancelArea">取消選取</button><button id="abortArea" class="hide">取消下載</button></div><p class="fineprint">下載 OSM 道路、步道、水域、林地、建築物、設施及地名，並以開放高程資料產生約 20 m 間距等高線。配色及細節與在線地圖不同；不包含在線圖磚或衛星。每區上限 150 km²／32 MB；若完整資料超出上限，請縮小範圍。</p></div>`);
+  document.querySelector('.trail-tools').insertAdjacentHTML('beforebegin',`<div class="explore-tools"><label>底圖 <select id="baseMode"><option value="online">在線完整地圖</option><option value="offline">已下載離線底圖</option></select></label><button id="jumpPlace">前往位置</button><button id="selectArea" class="primary">▣ 選擇離線範圍</button></div><div id="exploreStatus" class="muted" role="status">拖動或縮放，瀏覽其他地區。</div><div id="areaControls" class="area-controls hide"><label>區域名稱 <input id="areaName" maxlength="100" placeholder="例如 Para Wirra 北部"></label><p id="areaSize" role="status"></p><div class="row"><button id="saveArea" class="primary">下載底圖及等高線</button><button id="cancelArea">取消選取</button><button id="abortArea" class="hide">取消下載</button></div><p class="fineprint">下載 OSM 道路、步道、水域、林地、建築物、設施及地名，並以開放高程資料產生約 20 m 間距等高線。大型範圍會自動分區下載和合併；每張地圖上限 500 km²／128 MB。</p></div>`);
   document.querySelector('.map-wrap').insertAdjacentHTML('beforeend','<div id="areaFrame" class="area-frame hide"><span>離線下載範圍</span></div>');
   $('offlineView').querySelector('.storage-card').insertAdjacentHTML('afterend','<section class="area-library"><div class="row"><h2>我的離線區域</h2><button id="chooseFromOffline">＋ 地圖選區</button></div><div id="areaList"></div><p id="areaEmpty">未有獨立區域。毋須 GPX／KML，可直接喺地圖揀位置下載。</p></section><h2>路線附近底圖</h2>');
   document.body.insertAdjacentHTML('beforeend',`<dialog id="jumpDialog"><h2>搜尋及選擇地圖位置</h2><p>搜尋地名或使用目前位置，選定後會直接開啟離線範圍框。</p><label for="placeSearch">地名</label><input id="placeSearch" maxlength="120" autocomplete="off" placeholder="例如 Morialta Conservation Park"><div class="row jump-actions"><button id="searchPlace">搜尋地名</button><button id="jumpCurrent">◎ 使用目前位置</button></div><p id="placeStatus" class="muted" role="status"></p><div id="searchResults" class="search-results"></div><details><summary>常用地區或經緯度</summary><div id="placeChoices" class="row"></div><label>緯度<input id="jumpLat" type="number" min="-85" max="85" step="any" placeholder="例如 -34.68"></label><label>經度<input id="jumpLon" type="number" min="-180" max="180" step="any" placeholder="例如 138.82"></label><button id="jumpCoordinates">前往座標並框選</button></details><p class="fineprint">地名會傳送至 OpenStreetMap Nominatim 搜尋服務；不設自動完成，只會在按「搜尋地名」時查詢。搜尋結果會暫存在此裝置。目前位置只用來移動地圖，之後下載時所選範圍會傳送至 Overpass。</p><button id="closeJump" class="primary">關閉</button></dialog>`);
@@ -54,31 +55,23 @@ export function setupExplore(ctx){
   function startSelection(suggestedName=''){
     if(job){ctx.toast('請先等目前區域下載完成，或取消下載。');return;}if(!ctx.isReady()){ctx.toast('本機儲存未就緒。');return;}if(ctx.isEditing()){ctx.toast('請先完成自訂路線編輯。');return;}
     ctx.pauseFollow();ctx.nav('map');map.resize();selecting=true;lockedBounds=null;
-    if(areaKm2(map.viewBounds(.15))>150)map.zoom(Math.sqrt(100/areaKm2(map.viewBounds(.15))));
+    if(areaKm2(map.viewBounds(.15))>MAX_AREA_KM2)map.zoom(Math.sqrt(400/areaKm2(map.viewBounds(.15))));
     $('areaControls').classList.remove('hide');$('areaFrame').classList.remove('hide');$('areaProgress').textContent='';$('areaName').value=typeof suggestedName==='string'&&suggestedName.trim()?suggestedName.trim():'離線區域 '+(areas.length+1);updateSelection();
   }
   $('selectArea').onclick=$('chooseFromOffline').onclick=()=>startSelection();
   function cancelSelection(){if(job)return;selecting=false;lockedBounds=null;$('areaControls').classList.add('hide');$('areaFrame').classList.add('hide');}
   $('cancelArea').onclick=cancelSelection;$('abortArea').onclick=()=>job?.abort();
-  async function readDownload(response,signal){
-    if(!response.ok)throw Error('地圖服務回應 '+response.status);const limit=32*1024*1024;if(Number(response.headers.get('content-length'))>limit)throw Error('範圍資料超過 32 MB，請縮細範圍。');
-    if(!response.body){const text=await response.text();if(new Blob([text]).size>limit)throw Error('資料超過 32 MB。');return JSON.parse(text);}
-    const reader=response.body.getReader(),decoder=new TextDecoder();let size=0,text='';
-    while(true){if(signal.aborted){await reader.cancel();throw Error('下載已取消。');}const chunk=await reader.read();if(chunk.done)break;size+=chunk.value.byteLength;if(size>limit){await reader.cancel();throw Error('資料超過 32 MB，請縮細範圍。');}text+=decoder.decode(chunk.value,{stream:true});$('areaProgress').textContent='正在下載 '+ctx.formatSize(size)+'…';}
-    return JSON.parse(text+decoder.decode());
-  }
   const progress=el('p','','muted');progress.id='areaProgress';progress.setAttribute('role','status');$('areaSize').after(progress);
   $('saveArea').onclick=async()=>{
     if(job||ctx.jobs.size){ctx.toast('請等目前下載完成，或先取消。');return;}if(!navigator.onLine){ctx.toast('請連線後下載。');return;}
-    let bounds,name,query;try{bounds=structuredClone(map.viewBounds(.15));validateArea(bounds);name=$('areaName').value.trim();if(!name)throw Error('請為離線區域命名。');query=mapQuery(bounds);}catch(e){ctx.toast(ctx.failure(e));return;}
+    let bounds,name;try{bounds=structuredClone(map.viewBounds(.15));validateArea(bounds);name=$('areaName').value.trim();if(!name)throw Error('請為離線區域命名。');}catch(e){ctx.toast(ctx.failure(e));return;}
     const id='area:'+crypto.randomUUID(),controller=new AbortController();job=controller;lockedBounds=bounds;ctx.jobs.set(id,controller);$('areaProgress').textContent='正在取得框內地圖…';$('abortArea').classList.remove('hide');$('cancelArea').disabled=true;$('areaName').disabled=true;$('selectArea').disabled=true;updateSelection();
-    const timeout=setTimeout(()=>controller.abort('timeout'),150000);let data,error;
+    const timeout=setTimeout(()=>controller.abort('timeout'),600000);
     try{
-      for(const endpoint of ['https://overpass.kumi.systems/api/interpreter','https://overpass-api.de/api/interpreter']){const attempt=new AbortController(),cancel=()=>attempt.abort(controller.signal.reason),attemptTimer=setTimeout(()=>attempt.abort('endpoint-timeout'),65000);controller.signal.addEventListener('abort',cancel,{once:true});try{const response=await fetch(endpoint,{method:'POST',body:new URLSearchParams({data:query}),credentials:'omit',signal:attempt.signal});data=validateMap(await readDownload(response,attempt.signal));break;}catch(e){error=e;if(controller.signal.aborted)throw e;$('areaProgress').textContent='服務暫時未完成，正嘗試備用服務…';}finally{clearTimeout(attemptTimer);controller.signal.removeEventListener('abort',cancel);}}
-      if(!data)throw error;if(controller.signal.aborted)throw Error('下載已取消。');$('areaProgress').textContent='正在下載及產生 20 m 等高線…';const terrainResult=await downloadContours(bounds,{signal:controller.signal,onProgress:p=>$('areaProgress').textContent=`正在下載高程 ${p.done}/${p.total}…`}),size=new Blob([JSON.stringify(data),JSON.stringify(terrainResult.contours)]).size;if(size>32*1024*1024)throw Error('底圖連等高線超過 32 MB，請縮小範圍。');
-      const record={id,name,bounds,data,contours:terrainResult.contours,terrain:terrainResult.terrain,detailLevel:'建築物、地標及等高線',downloaded:Date.now(),size};$('areaProgress').textContent='正在儲存…';await store.put('areas',record);
+      const osm=await downloadOsmInChunks(bounds,{signal:controller.signal,onProgress:p=>$('areaProgress').textContent=`正在下載地圖分區 ${p.index}/${p.total}${p.endpoint>1?'（備用服務）':''} · ${ctx.formatSize(p.transferred)}…`}),data=osm.data;if(controller.signal.aborted)throw Error('下載已取消。');$('areaProgress').textContent='正在下載及產生 20 m 等高線…';const terrainResult=await downloadContours(bounds,{signal:controller.signal,onProgress:p=>$('areaProgress').textContent=`正在下載高程 ${p.done}/${p.total}…`}),size=new Blob([JSON.stringify(data),JSON.stringify(terrainResult.contours)]).size;if(size>PACKAGE_LIMIT_BYTES)throw Error('完整離線地圖超過 128 MB，請縮小範圍。');await assertStorageRoom(size);
+      const record={id,name,bounds,data,contours:terrainResult.contours,terrain:terrainResult.terrain,parts:osm.parts,detailLevel:'建築物、地標及等高線',downloaded:Date.now(),size};$('areaProgress').textContent='正在安全儲存…';await store.put('areas',record);
       await refresh();selecting=false;lockedBounds=null;$('areaControls').classList.add('hide');$('areaFrame').classList.add('hide');mode='offline';loadedKey=null;map.fitBounds(record.bounds);syncMode();ctx.toast('「'+name+'」底圖及等高線已儲存，現正預覽實際離線地圖。出發前請用飛行模式重開測試。');
-    }catch(e){$('areaProgress').textContent=controller.signal.aborted?(controller.signal.reason==='timeout'?'下載逾時，未儲存新區域。':'已取消，未儲存新區域。'):'下載失敗：'+ctx.failure(e)+'。既有區域不受影響。';}
+    }catch(e){$('areaProgress').textContent=controller.signal.aborted?(controller.signal.reason==='timeout'?'下載超過 10 分鐘，未儲存新區域。':'已取消，未儲存新區域。'):'下載失敗：'+ctx.failure(e)+'。既有區域不受影響。';}
     finally{clearTimeout(timeout);ctx.jobs.delete(id);job=null;lockedBounds=null;$('abortArea').classList.add('hide');$('cancelArea').disabled=false;$('areaName').disabled=false;$('selectArea').disabled=false;updateSelection();ctx.storageInfo();}
   };
   function renderAreas(){

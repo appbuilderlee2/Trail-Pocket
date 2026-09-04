@@ -32,7 +32,7 @@ jobs:
       - name: Prepare static PWA
         run: |
           mkdir -p dist/assets
-          cp activity.mjs activity-core.mjs activity.css index.html style.css adventure.css app.mjs core.mjs storage.mjs map.mjs adventure.mjs adventure-core.mjs explore.mjs explore-core.mjs online-map.mjs terrain.mjs explore.css sw.js manifest.webmanifest dist/
+          cp offline-download.mjs activity.mjs activity-core.mjs activity.css index.html style.css adventure.css app.mjs core.mjs storage.mjs map.mjs adventure.mjs adventure-core.mjs explore.mjs explore-core.mjs online-map.mjs terrain.mjs explore.css sw.js manifest.webmanifest dist/
           cp assets/icon-192.png assets/icon-512.png assets/devils-route.json assets/devils-base.json dist/assets/
           touch dist/.nojekyll
 

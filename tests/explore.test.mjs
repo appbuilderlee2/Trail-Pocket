@@ -4,7 +4,8 @@ import {readFile} from 'node:fs/promises';
 import {project} from '../core.mjs';
 import {WORLD,visibleTiles,viewportBounds,validateArea,overlaps,contains,placeSearchURL,parsePlaceResults} from '../explore-core.mjs';
 import {OnlineMap} from '../online-map.mjs';
-import {terrainTiles,terrariumElevation,contoursFromSamples} from '../terrain.mjs';
+import {terrainTiles,terrainZoom,terrariumElevation,contoursFromSamples} from '../terrain.mjs';
+import {MAX_AREA_KM2,PACKAGE_LIMIT_BYTES,splitBounds,mergeMapChunks,assertStorageRoom} from '../offline-download.mjs';
 
 test('visible tile grid covers only current viewport and indices remain valid',()=>{
   for(const point of [[138.82,-34.68],[114.17,22.3],[0,0],[-179,84],[179,-84]])for(const units of [.15,2,80,30000,200000]){
@@ -18,9 +19,12 @@ test('Web Mercator tile locations agree with route projection',()=>{
 });
 test('selection frame derives same bounds as drawn 15 percent inset',()=>{const c=project([138.82,-34.68]),whole=viewportBounds(c,5,1000,700),frame=viewportBounds(c,5,1000,700,.15);assert.ok(contains(whole,frame));assert.ok(frame.west>whole.west&&frame.east<whole.east&&frame.north<whole.north&&frame.south>whole.south);assert.ok(validateArea(frame)>1);});
 test('area validation prevents world downloads and invalid geometry',()=>{for(const b of [{west:-180,east:180,south:-85,north:85},{west:NaN,east:1,south:0,north:1},{west:2,east:1,south:0,north:1},{west:0,east:1,south:86,north:87}])assert.throws(()=>validateArea(b));});
-test('area limit is 150 square kilometres',()=>{const allowed={west:138,east:138.14,south:-34.1,north:-34};assert.ok(validateArea(allowed)>100);assert.throws(()=>validateArea({west:138,east:138.2,south:-34.1,north:-34}),/150 km²/);});
+test('large offline areas allow 500 square kilometres and split into safe queries',()=>{const allowed={west:138,east:138.48,south:-34.1,north:-34};assert.ok(validateArea(allowed)>400);assert.equal(MAX_AREA_KM2,500);assert.equal(PACKAGE_LIMIT_BYTES,128*1024*1024);const parts=splitBounds(allowed);assert.ok(parts.length>4);assert.ok(parts.every(p=>validateArea(p)<=102));assert.throws(()=>validateArea({west:138,east:138.6,south:-34.1,north:-34}),/500 km²/);});
+test('large area splitter rejects missing bounds',()=>{assert.throws(()=>splitBounds(null),/500 km²/);});
+test('chunk merge removes boundary duplicates and storage guard preserves headroom',async()=>{const data=mergeMapChunks([{elements:[{type:'way',id:1},{type:'node',id:2}]},{elements:[{type:'way',id:1},{type:'way',id:3}]}]);assert.deepEqual(data.elements.map(x=>x.id),[1,2,3]);await assertStorageRoom(1024,{estimate:async()=>({usage:0,quota:20*1024*1024})});await assert.rejects(()=>assertStorageRoom(20*1024*1024,{estimate:async()=>({usage:19*1024*1024,quota:20*1024*1024})}),/空間不足/);});
 test('place search is explicit, bounded and validates returned coordinates',()=>{const url=placeSearchURL(' Morialta Conservation Park ');assert.equal(url.origin,'https://nominatim.openstreetmap.org');assert.equal(url.searchParams.get('q'),'Morialta Conservation Park');assert.equal(url.searchParams.get('limit'),'5');assert.throws(()=>placeSearchURL('x'));const results=parsePlaceResults([{display_name:'Morialta, South Australia',lon:'138.708',lat:'-34.905'},{display_name:'Invalid',lon:'999',lat:'0'},null]);assert.deepEqual(results,[{name:'Morialta, South Australia',point:[138.708,-34.905]}]);assert.throws(()=>parsePlaceResults({}));});
 test('terrain tiles and Terrarium decoding support offline contours',()=>{const tiles=terrainTiles({west:138.65,east:138.75,south:-34.95,north:-34.85});assert.ok(tiles.length>0&&tiles.length<20);assert.ok(tiles.every(t=>t.url.startsWith('https://s3.amazonaws.com/elevation-tiles-prod/terrarium/12/')));assert.equal(terrariumElevation(128,0,0),0);assert.equal(terrariumElevation(128,100,128),100.5);const grid=new Float32Array([0,20,40,0,20,40,0,20,40]);const contours=contoursFromSamples(grid,3,3,{originX:0,originY:0,stride:2,z:12,interval:20});assert.deepEqual(contours.map(c=>c.elevation),[20,40]);assert.ok(contours.every(c=>c.paths.length));});
+test('large contour downloads lower terrain zoom instead of failing',()=>{const bounds={west:138,east:139.8,south:-35.2,north:-34};assert.ok(terrainZoom(bounds)<=12);assert.doesNotThrow(()=>terrainTiles(bounds,terrainZoom(bounds)));});
 test('disjoint downloaded regions leave gaps rather than claiming union coverage',()=>{const a={west:0,east:1,south:0,north:1},b={west:10,east:11,south:10,north:11},gap={west:4,east:5,south:4,north:5};assert.equal(overlaps(a,b),false);assert.equal(overlaps(a,gap)||overlaps(b,gap),false);assert.equal(contains(a,b),false);assert.equal(contains(a,{west:.2,east:.3,south:.2,north:.3}),true);});
 test('offline renderer makes no tile requests and retries require action',()=>{
   const prior=globalThis.Image,requests=[];globalThis.Image=class {set src(url){requests.push(url);}};
@@ -31,7 +35,7 @@ test('offline renderer makes no tile requests and retries require action',()=>{
 });
 test('all new static modules deploy and precache, online tiles are not precached',async()=>{
   const sw=await readFile(new URL('../sw.js',import.meta.url),'utf8'),workflow=await readFile(new URL('../.github/workflows/pages.yml',import.meta.url),'utf8');
-  for(const asset of ['explore.mjs','explore-core.mjs','online-map.mjs','terrain.mjs','explore.css']){assert.ok(sw.includes("'./"+asset+"'"));assert.ok(workflow.includes(asset));}
+  for(const asset of ['offline-download.mjs','explore.mjs','explore-core.mjs','online-map.mjs','terrain.mjs','explore.css']){assert.ok(sw.includes("'./"+asset+"'"));assert.ok(workflow.includes(asset));}
   assert.equal(sw.includes('tile.openstreetmap.org'),false);
   const areaCode=await readFile(new URL('../explore.mjs',import.meta.url),'utf8');assert.equal(areaCode.includes('tile.openstreetmap.org'),false);
 });

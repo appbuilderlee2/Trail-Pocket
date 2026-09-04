@@ -13,6 +13,7 @@ export function terrainTiles(bounds,z=TERRAIN_ZOOM){
   if(!tiles.length||tiles.length>80)throw Error('等高線範圍需要太多資料，請縮小範圍。');
   return tiles;
 }
+export function terrainZoom(bounds,preferred=TERRAIN_ZOOM){for(let z=preferred;z>=10;z--){try{terrainTiles(bounds,z);return z;}catch(e){if(!String(e.message).includes('太多資料'))throw e;}}throw Error('等高線範圍需要太多資料，請縮小範圍。');}
 export const terrariumElevation=(r,g,b)=>r*256+g+b/256-32768;
 
 function lonLat(x,y,z){const n=256*2**z;return [x/n*360-180,Math.atan(Math.sinh(Math.PI*(1-2*y/n)))*180/Math.PI];}
@@ -39,7 +40,7 @@ async function bitmapFrom(blob){
   const url=URL.createObjectURL(blob),image=new Image();try{await new Promise((resolve,reject)=>{image.onload=resolve;image.onerror=()=>reject(Error('未能讀取高程圖塊。'));image.src=url;});return image;}finally{URL.revokeObjectURL(url);}
 }
 export async function downloadContours(bounds,{signal,onProgress=()=>{},fetcher=fetch,z=TERRAIN_ZOOM,interval=TERRAIN_INTERVAL}={}){
-  const tiles=terrainTiles(bounds,z),minX=Math.min(...tiles.map(t=>t.x)),maxX=Math.max(...tiles.map(t=>t.x)),minY=Math.min(...tiles.map(t=>t.y)),maxY=Math.max(...tiles.map(t=>t.y)),sample=2,side=256/sample,width=(maxX-minX+1)*side,height=(maxY-minY+1)*side,values=new Float32Array(width*height);let bytes=0,done=0;
+  z=terrainZoom(bounds,z);const tiles=terrainTiles(bounds,z),minX=Math.min(...tiles.map(t=>t.x)),maxX=Math.max(...tiles.map(t=>t.x)),minY=Math.min(...tiles.map(t=>t.y)),maxY=Math.max(...tiles.map(t=>t.y)),sample=2,side=256/sample,width=(maxX-minX+1)*side,height=(maxY-minY+1)*side,values=new Float32Array(width*height);let bytes=0,done=0;
   for(const tile of tiles){if(signal?.aborted)throw Error('下載已取消。');const response=await fetcher(tile.url,{credentials:'omit',signal});if(!response.ok)throw Error('高程服務回應 '+response.status+'。');const blob=await response.blob();bytes+=blob.size;const bitmap=await bitmapFrom(blob),canvas=typeof OffscreenCanvas==='function'?new OffscreenCanvas(256,256):Object.assign(document.createElement('canvas'),{width:256,height:256}),ctx=canvas.getContext('2d',{willReadFrequently:true});ctx.drawImage(bitmap,0,0,256,256);const pixels=ctx.getImageData(0,0,256,256).data;bitmap.close?.();const ox=(tile.x-minX)*side,oy=(tile.y-minY)*side;for(let sy=0;sy<side;sy++)for(let sx=0;sx<side;sx++){const i=((sy*sample)*256+sx*sample)*4;values[(oy+sy)*width+ox+sx]=terrariumElevation(pixels[i],pixels[i+1],pixels[i+2]);}done++;onProgress({done,total:tiles.length,bytes});}
   const contours=contoursFromSamples(values,width,height,{originX:minX*256,originY:minY*256,stride:sample,z,interval});return {contours,bytes,terrain:{source:'Mapzen Terrain Tiles / AWS Open Data',zoom:z,interval}};
 }
