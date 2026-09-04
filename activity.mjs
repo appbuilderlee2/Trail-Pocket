@@ -26,16 +26,17 @@ export function setupActivity(ctx) {
     chain = Promise.resolve(),
     releaseLock = null,
     saveError = false,
-    lastSave = 0;
+    lastSave = 0,
+    expanded = false;
   const wake = createWakeLock();
   const host = el("section", undefined, "activity-panel");
-  host.innerHTML = `<div class="activity-heading"><div><small>YOUR ACTIVITY</small><h2 id="activityTitle">開始你嘅行程</h2></div><button id="activityHistory">活動紀錄</button></div><div class="activity-stats">${[
-    ["Time", "活動時間"],
-    ["Distance", "已行距離 km"],
-    ["Gain", "累計爬升 m"],
-    ["Remaining", "預計剩餘 km"],
-    ["Pace", "平均配速 /km"],
-    ["Speed", "平均速度 km/h"],
+  host.innerHTML = `<button id="activitySheetToggle" class="activity-sheet-toggle" aria-label="展開活動面板" aria-expanded="false"><span></span><b>⌃</b></button><div class="activity-heading"><div><small>YOUR ACTIVITY</small><h2 id="activityTitle">開始你嘅行程</h2></div><button id="activityHistory">活動紀錄</button></div><div class="activity-stats">${[
+    ["Time", "時間"],
+    ["Distance", "距離 km"],
+    ["Gain", "爬升 m"],
+    ["Remaining", "剩餘 km"],
+    ["Pace", "配速 /km"],
+    ["Speed", "速度 km/h"],
   ]
     .map(
       ([id, label]) =>
@@ -43,8 +44,12 @@ export function setupActivity(ctx) {
     )
     .join(
       "",
-    )}</div><button id="startActivity" class="primary">▶ 開始活動</button><div id="activityBody" class="hide"><label>活動名稱<input id="activityName" maxlength="160" aria-label="活動名稱"></label><label class="keep-awake"><input id="keepAwake" type="checkbox" checked>活動進行時保持螢幕亮著（較耗電）</label><div id="activityProfile"></div><div class="row"><button id="pauseActivity">暫停活動</button><button id="resumeActivity" class="primary">繼續活動</button><button id="finishActivity" class="primary">完成並儲存</button></div></div><p id="activityStatus" role="status">開始後會要求 GPS 定位，活動只儲存在此裝置。</p><p class="fineprint">保持亮屏只在此頁可見及瀏覽器支援時生效，會增加耗電；切換 App／真正熄屏仍會自動暫停。GPS 不佳或中斷不會補畫直線；剩餘並非沿路導航。爬升為 GPS 估算。</p>`;
+    )}</div><button id="startActivity" class="primary">▶ 開始活動</button><div id="activityBody" class="hide"><div id="activityProfile"></div><div class="activity-tools"><button id="activityDetailsShortcut"><span>⌁</span>活動詳情 <b>›</b></button><button id="activityGpsShortcut"><span>◎</span>GPS 及緊急位置 <b>›</b></button><button id="activityMinimize"><span>↙</span>縮小活動面板 <b>›</b></button></div><div class="activity-settings"><label>活動名稱<input id="activityName" maxlength="160" aria-label="活動名稱"></label><label class="keep-awake"><input id="keepAwake" type="checkbox" checked>活動進行時保持螢幕亮著（較耗電）</label><div id="activityGpsDrawer" class="activity-gps-drawer hide"></div></div><div class="activity-actions"><button id="pauseActivity" class="activity-go">暫停</button><button id="resumeActivity" class="activity-go">繼續</button><button id="finishActivity">完成</button></div></div><p id="activityStatus" role="status">開始後會要求 GPS 定位，活動只儲存在此裝置。</p><p class="fineprint">保持亮屏只在此頁可見及瀏覽器支援時生效，會增加耗電；切換 App／真正熄屏仍會自動暫停。GPS 不佳或中斷不會補畫直線；剩餘並非沿路導航。爬升為 GPS 估算。</p>`;
   document.querySelector("#mapView .gps-bar").before(host);
+  $("activityGpsDrawer").append(
+    document.querySelector("#mapView .gps-bar"),
+    document.querySelector("#mapView .emergency-card"),
+  );
   const history = el("dialog");
   history.id = "activityHistoryDialog";
   history.innerHTML =
@@ -180,6 +185,14 @@ export function setupActivity(ctx) {
   }
   function render() {
     const running = active?.status === "recording";
+    host.classList.toggle("is-expanded", expanded);
+    host.classList.toggle("has-activity", !!active);
+    $("activitySheetToggle").setAttribute("aria-expanded", String(expanded));
+    $("activitySheetToggle").setAttribute(
+      "aria-label",
+      expanded ? "縮小活動面板" : "展開活動面板",
+    );
+    $("activitySheetToggle").querySelector("b").textContent = expanded ? "⌄" : "⌃";
     $("startActivity").classList.toggle("hide", !!active);
     $("startActivity").disabled = busy;
     $("activityBody").classList.toggle("hide", !active);
@@ -233,6 +246,7 @@ export function setupActivity(ctx) {
         active = newActivity(ctx.getRoute());
         message = "活動已建立，等候定位。";
       }
+      expanded = true;
       $("activityName").value = active.name;
       await save();
       if (!draft?.value) {
@@ -353,6 +367,19 @@ export function setupActivity(ctx) {
     detail.showModal();
   }
   $("startActivity").onclick = start;
+  $("activitySheetToggle").onclick = () => {
+    expanded = !expanded;
+    render();
+  };
+  $("activityMinimize").onclick = () => {
+    expanded = false;
+    render();
+  };
+  $("activityDetailsShortcut").onclick = () => $("activityHistory").click();
+  $("activityGpsShortcut").onclick = () => {
+    $("activityGpsDrawer").classList.toggle("hide");
+    if (!$("activityGpsDrawer").classList.contains("hide") && !active) $("gps").click();
+  };
   $("pauseActivity").onclick = () => suspend();
   $("resumeActivity").onclick = continueActivity;
   $("finishActivity").onclick = finish;
@@ -401,6 +428,11 @@ export function setupActivity(ctx) {
     }
   }, 1000);
   return {
+    openPanel() {
+      expanded = true;
+      render();
+      host.scrollIntoView({ block: "end", behavior: "smooth" });
+    },
     isRecording: () => active?.status === "recording",
     onError: () => suspend("定位未能使用，活動已暫停；請確認定位權限後繼續。"),
     onFix(fix) {
