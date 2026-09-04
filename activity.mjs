@@ -246,7 +246,8 @@ export function setupActivity(ctx) {
         active = newActivity(ctx.getRoute());
         message = "活動已建立，等候定位。";
       }
-      expanded = true;
+      // Enter the compact map-first tracker. Full details remain one tap away.
+      expanded = false;
       $("activityName").value = active.name;
       await save();
       if (!draft?.value) {
