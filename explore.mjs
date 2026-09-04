@@ -29,7 +29,7 @@ export function setupExplore(ctx){
   function status(){
     const online=mode==='online'&&navigator.onLine;
     if(online){const s=tileState;$('exploreStatus').textContent=s.failed?`部分在線底圖未載入（${s.failed} 張）。可按「重試底圖」，或切換已下載底圖。`:`在線地圖${s.total?` · ${s.loaded}/${s.total} 張已載入`:''} · 可自由拖動、縮放；瀏覽不等於離線下載。`;$('retryTiles').classList.toggle('hide',!s.failed);}
-    else{const b=map.viewBounds(),near=[...areas,...routeMaps].filter(m=>overlaps(m.bounds,b)),old=near.some(m=>!['建築物及地標','建築物、地標及等高線'].includes(m.detailLevel)),noContours=near.some(m=>!m.terrain);$('exploreStatus').textContent=(navigator.onLine?'離線預覽':'目前離線')+` · 畫面涵蓋 ${near.length} 個已下載範圍。`+(near.some(m=>contains(m.bounds,b))?'':'範圍外可能留白；可到「離線下載」開啟已儲存區域。')+(old?' 其中有舊版／基本底圖，不含建築物；請重新下載。':noContours?' 其中有舊底圖未含等高線；重新下載即可加入。':' · 已包含離線等高線。');$('retryTiles').classList.add('hide');}
+    else{const b=map.viewBounds(),near=[...areas,...routeMaps].filter(m=>overlaps(m.bounds,b)),old=near.some(m=>!['建築物及地標','建築物、地標及等高線'].includes(m.detailLevel)),noContours=near.some(m=>!m.terrain);$('exploreStatus').textContent=(navigator.onLine?'離線預覽':'目前離線')+` · 畫面涵蓋 ${near.length} 個已下載範圍。`+(near.some(m=>contains(m.bounds,b))?'':'範圍外可能留白；可到「離線下載」開啟已儲存區域。')+(near.length?(old?' 其中有舊版／基本底圖，不含建築物；請重新下載。':noContours?' 其中有舊底圖未含等高線；重新下載即可加入。':' 已包含離線等高線。'):'');$('retryTiles').classList.add('hide');}
     $('baseMode').value=mode;
   }
   const retry=button('重試底圖',()=>map.online.retry());retry.id='retryTiles';retry.className='hide';$('exploreStatus').after(retry);
