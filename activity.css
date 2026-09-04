@@ -50,6 +50,15 @@
   .activity-panel:not(.is-expanded):not(.has-activity) .activity-stats { display:none; }
   .activity-panel:not(.is-expanded):not(.has-activity) #startActivity { margin-top:6px; }
   #startActivity { width:100%;min-height:52px;border-radius:18px;font-size:16px; }
+  .activity-panel.has-activity:not(.is-expanded) { min-height:68px;padding:8px 52px 8px 14px;border:1px solid rgba(255,255,255,.9)!important;border-radius:22px!important;background:rgba(252,253,249,.94);box-shadow:0 8px 28px rgba(16,39,30,.18)!important;backdrop-filter:blur(16px); }
+  .activity-panel.has-activity:not(.is-expanded) .activity-sheet-toggle { position:absolute;top:50%;right:8px;width:38px;height:44px;margin:0;transform:translateY(-50%); }
+  .activity-panel.has-activity:not(.is-expanded) .activity-sheet-toggle span { display:none; }
+  .activity-panel.has-activity:not(.is-expanded) .activity-sheet-toggle b { width:38px;height:38px;background:#edf0ea; }
+  .activity-panel.has-activity:not(.is-expanded) .activity-stats { height:52px;margin:0;gap:0;align-items:center; }
+  .activity-panel.has-activity:not(.is-expanded) .activity-stats > div { padding:0 12px; }
+  .activity-panel.has-activity:not(.is-expanded) .activity-stats > div:first-child { padding-left:4px; }
+  .activity-panel.has-activity:not(.is-expanded) .activity-stats strong { font-size:clamp(25px,8vw,34px); }
+  .activity-panel.has-activity:not(.is-expanded) .activity-stats span { margin-top:3px;font-size:9px; }
   #activityProfile { min-height:112px;padding:8px 0 0; }
   .activity-panel.is-expanded { max-height:min(62dvh,660px);overflow-y:auto;overscroll-behavior:contain;scrollbar-width:none; }
   .activity-panel.is-expanded::-webkit-scrollbar { display:none; }
