@@ -1,4 +1,10 @@
-# Trail Pocket PWA v3.1.1
+# Trail Pocket PWA v3.1.2
+
+## v3.1.2 Larger mobile map
+
+- Idle activity sheet is now a compact start bar instead of a metrics card.
+- Collapsed recording state keeps only time and distance visible.
+- Expanded details are capped lower so the map remains useful while checking stats.
 
 ## v3.1.1 Responsive navigation correction
 
