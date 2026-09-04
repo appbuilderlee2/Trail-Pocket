@@ -1,4 +1,8 @@
-# Trail Pocket PWA v3.0.1
+# Trail Pocket PWA v3.0.2
+
+## v3.0.2 GeoPDF 來源狀態同步
+
+- 由地圖來源面板切換至獨立 GeoPDF 時，同步更新地圖標題、離線狀態及路線控制。
 
 ## v3.0.1 手機快速鍵顯示修正
 
