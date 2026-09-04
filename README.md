@@ -1,4 +1,8 @@
-# Trail Pocket PWA v2.9.0
+# Trail Pocket PWA v2.9.1
+
+## v2.9.1 GeoPDF 定位可靠性修正
+
+- 使用 PDF CropBox 原點計算地理座標；旋轉頁面暫未支援時會拒絕匯入，避免 GPS 藍點顯示錯位。
 
 ## v2.9.0 官方 GeoPDF 離線定位
 
