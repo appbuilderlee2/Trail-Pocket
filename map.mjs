@@ -1,6 +1,11 @@
 import { project, unproject, joinWays, distance } from "./core.mjs";
 import { WORLD, viewportBounds } from "./explore-core.mjs";
-import { geoToPage, pointInFootprint, accuracyPixels } from "./geopdf-core.mjs";
+import {
+  geoToPage,
+  pageToGeo,
+  pointInFootprint,
+  accuracyPixels,
+} from "./geopdf-core.mjs";
 export function mapFeatures(elements = []) {
   const shapes = [],
     points = [];
@@ -108,8 +113,9 @@ export class TrailMap {
         last = this.gesture;
       if (last) {
         this.onPan?.();
-        const center = this.geoPdf ? this.geoCenter : this.center,
-          units = this.geoPdf ? this.geoUnits : this.units;
+        const exclusiveGeo = this.geoPdf && !this.geoOverlay,
+          center = exclusiveGeo ? this.geoCenter : this.center,
+          units = exclusiveGeo ? this.geoUnits : this.units;
         center[0] -= (next.x - last.x) * units;
         center[1] -= (next.y - last.y) * units;
         if (next.d && last.d) {
@@ -171,7 +177,9 @@ export class TrailMap {
     return [this.base, ...(this.regionRecords || [])].filter(Boolean);
   }
   centerPoint() {
-    return this.geoPdf ? this.geoPdf.transform.center : unproject(this.center);
+    return this.geoPdf && !this.geoOverlay
+      ? this.geoPdf.transform.center
+      : unproject(this.center);
   }
   screen(p) {
     return [
@@ -180,7 +188,7 @@ export class TrailMap {
     ];
   }
   zoom(f, x = this.w / 2, y = this.h / 2) {
-    if (this.geoPdf) {
+    if (this.geoPdf && !this.geoOverlay) {
       const u = Math.max(
         0.04,
         Math.min(
@@ -200,10 +208,12 @@ export class TrailMap {
     this.units = u;
     this.draw();
   }
-  setGeoPdf(record, image) {
+  setGeoPdf(record, image, { overlay = false, opacity = 0.68 } = {}) {
     this.geoPdf = record || null;
     this.geoImage = image || null;
-    if (record && image) {
+    this.geoOverlay = Boolean(record && overlay);
+    this.geoOpacity = Math.max(0.15, Math.min(0.9, Number(opacity) || 0.68));
+    if (record && image && !overlay) {
       this.geoCenter = [image.width / 2, image.height / 2];
       this.geoUnits = 1;
       this.fit();
@@ -261,7 +271,7 @@ export class TrailMap {
     this.draw();
   }
   fit() {
-    if (this.geoPdf && this.geoImage) {
+    if (this.geoPdf && this.geoImage && !this.geoOverlay) {
       this.geoCenter = [this.geoImage.width / 2, this.geoImage.height / 2];
       this.geoUnits =
         Math.max(
@@ -297,7 +307,7 @@ export class TrailMap {
     this.draw();
   }
   focus(point) {
-    if (this.geoPdf) {
+    if (this.geoPdf && !this.geoOverlay) {
       const p = geoToPage(this.geoPdf.transform, point);
       this.geoCenter = [
         p[0] * this.geoImage.width,
@@ -314,7 +324,7 @@ export class TrailMap {
   setFix(fix, follow = false) {
     this.fix = fix;
     if (follow && fix) {
-      if (this.geoPdf) {
+      if (this.geoPdf && !this.geoOverlay) {
         const point = [fix.coords.longitude, fix.coords.latitude];
         if (pointInFootprint(this.geoPdf.transform, point)) {
           const p = geoToPage(this.geoPdf.transform, point);
@@ -336,6 +346,96 @@ export class TrailMap {
         this.h / 2,
     ];
   }
+  drawGeoRoute(c) {
+    for (const segment of this.route?.segments || []) {
+      const points = segment
+        .filter((p) => pointInFootprint(this.geoPdf.transform, p))
+        .map((p) => this.geoScreen(p));
+      if (points.length < 2) continue;
+      for (const [color, width] of [
+        ["#fff", 8],
+        ["#16845d", 4.5],
+      ]) {
+        c.beginPath();
+        points.forEach((p, i) => (i ? c.lineTo(...p) : c.moveTo(...p)));
+        c.strokeStyle = color;
+        c.lineWidth = width;
+        c.stroke();
+      }
+    }
+  }
+  drawGeoOverlay(c) {
+    if (!this.geoPdf || !this.geoImage || !this.geoOverlay) return;
+    const cols = 10,
+      rows = 10,
+      width = this.geoImage.width,
+      height = this.geoImage.height,
+      point = (u, v) => {
+        const geo = pageToGeo(this.geoPdf.transform, [u, v]);
+        return geo ? this.screen(project(geo)) : null;
+      },
+      drawTriangle = (source, target) => {
+        if (target.some((p) => !p)) return;
+        const [s0, s1, s2] = source,
+          [d0, d1, d2] = target,
+          determinant =
+            s0[0] * (s1[1] - s2[1]) +
+            s1[0] * (s2[1] - s0[1]) +
+            s2[0] * (s0[1] - s1[1]);
+        if (Math.abs(determinant) < 1e-8) return;
+        const coefficient = (v0, v1, v2) => [
+            (v0 * (s1[1] - s2[1]) +
+              v1 * (s2[1] - s0[1]) +
+              v2 * (s0[1] - s1[1])) /
+              determinant,
+            (v0 * (s2[0] - s1[0]) +
+              v1 * (s0[0] - s2[0]) +
+              v2 * (s1[0] - s0[0])) /
+              determinant,
+            (v0 * (s1[0] * s2[1] - s2[0] * s1[1]) +
+              v1 * (s2[0] * s0[1] - s0[0] * s2[1]) +
+              v2 * (s0[0] * s1[1] - s1[0] * s0[1])) /
+              determinant,
+          ],
+          x = coefficient(d0[0], d1[0], d2[0]),
+          y = coefficient(d0[1], d1[1], d2[1]);
+        c.save();
+        c.beginPath();
+        c.moveTo(...d0);
+        c.lineTo(...d1);
+        c.lineTo(...d2);
+        c.closePath();
+        c.clip();
+        c.transform(x[0], y[0], x[1], y[1], x[2], y[2]);
+        c.drawImage(this.geoImage, 0, 0);
+        c.restore();
+      };
+    c.save();
+    c.globalAlpha = this.geoOpacity;
+    for (let row = 0; row < rows; row++)
+      for (let col = 0; col < cols; col++) {
+        const u0 = col / cols,
+          u1 = (col + 1) / cols,
+          v0 = row / rows,
+          v1 = (row + 1) / rows,
+          source = [
+            [u0 * width, v0 * height],
+            [u1 * width, v0 * height],
+            [u1 * width, v1 * height],
+            [u0 * width, v1 * height],
+          ],
+          target = [point(u0, v0), point(u1, v0), point(u1, v1), point(u0, v1)];
+        drawTriangle(
+          [source[0], source[1], source[2]],
+          [target[0], target[1], target[2]],
+        );
+        drawTriangle(
+          [source[0], source[2], source[3]],
+          [target[0], target[2], target[3]],
+        );
+      }
+    c.restore();
+  }
   drawGeo(c) {
     c.clearRect(0, 0, this.w, this.h);
     c.fillStyle = "#e9e7df";
@@ -350,6 +450,7 @@ export class TrailMap {
     c.strokeStyle = "#5b665a";
     c.lineWidth = 1;
     c.strokeRect(x, y, w, h);
+    this.drawGeoRoute(c);
     for (const segment of this.activityTrack || []) {
       let run = [];
       const flush = () => {
@@ -455,7 +556,7 @@ export class TrailMap {
   draw() {
     const c = this.ctx;
     if (!c || !this.w) return;
-    if (this.geoPdf && this.geoImage) {
+    if (this.geoPdf && this.geoImage && !this.geoOverlay) {
       this.drawGeo(c);
       return;
     }
@@ -674,6 +775,7 @@ export class TrailMap {
       c.strokeRect(a[0], a[1], z[0] - a[0], z[1] - a[1]);
       c.setLineDash([]);
     }
+    this.drawGeoOverlay(c);
     for (const [si, s] of (this.projected || []).entries()) {
       this.line(s, "#fcfff9", 8);
       if (!layers.slope) this.line(s, "#288561", 4.5);
