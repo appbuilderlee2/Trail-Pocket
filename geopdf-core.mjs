@@ -51,6 +51,8 @@ export function createGeoTransform({
   bbox,
   gpts,
   lpts,
+  pageX = 0,
+  pageY = 0,
   pageWidth,
   pageHeight,
 }) {
@@ -70,7 +72,10 @@ export function createGeoTransform({
       pdfY = bbox[1] + (bbox[3] - bbox[1]) * v;
     if (!validCoordinate(geo) || ![u, v, pdfX, pdfY].every(Number.isFinite))
       throw Error("GeoPDF 控制點無效。");
-    points.push({ geo, page: [pdfX / pageWidth, 1 - pdfY / pageHeight] });
+    points.push({
+      geo,
+      page: [(pdfX - pageX) / pageWidth, 1 - (pdfY - pageY) / pageHeight],
+    });
   }
   if (points.length < 4) throw Error("GeoPDF 至少需要 4 個地理控制點。");
   const center = [

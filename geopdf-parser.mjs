@@ -46,8 +46,10 @@ export async function parseGeoPdf(bytes) {
   const candidates = [];
   for (let pageIndex = 0; pageIndex < pdf.getPageCount(); pageIndex++) {
     const page = pdf.getPage(pageIndex),
-      pageWidth = page.getWidth(),
-      pageHeight = page.getHeight();
+      crop = page.getCropBox(),
+      pageWidth = crop.width,
+      pageHeight = crop.height,
+      pageRotation = ((page.getRotation().angle % 360) + 360) % 360;
     let viewports;
     try {
       viewports = page.node.lookup(name("VP"), PDFArray);
@@ -63,6 +65,9 @@ export async function parseGeoPdf(bytes) {
           pageIndex,
           pageWidth,
           pageHeight,
+          pageX: crop.x,
+          pageY: crop.y,
+          pageRotation,
           bbox: array(viewport, "BBox"),
           gpts: array(measure, "GPTS"),
           lpts: array(measure, "LPTS"),
@@ -74,6 +79,8 @@ export async function parseGeoPdf(bytes) {
   }
   const selected = selectPrimaryViewport(candidates),
     transform = createGeoTransform(selected);
+  if (selected.pageRotation)
+    throw Error("旋轉頁面嘅 GeoPDF 暫不支援，未有匯入以免 GPS 位置偏移。");
   return {
     format: "geospatial-pdf",
     pageIndex: selected.pageIndex,
