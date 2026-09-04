@@ -35,6 +35,7 @@ let routes = [],
   selected = null,
   selectedMap = null,
   currentView = "routes",
+  currentTab = "saved",
   shellReady = false,
   reg = null,
   toastTimer,
@@ -89,17 +90,18 @@ function network() {
   $("network").textContent = navigator.onLine ? "● 目前在線" : "○ 目前離線";
   if (currentView === "map") mapBadge();
 }
-function nav(name) {
+function nav(name, tab = name === "routes" ? "saved" : name === "map" ? "explore" : name) {
   if (adventure.isEditing() && name !== "map") {
     toast("請先儲存或取消自訂路線編輯。");
     return;
   }
   currentView = name;
+  currentTab = tab;
   for (const n of ["routes", "map", "offline", "help"])
     $(n + "View").classList.toggle("hide", n !== name);
   document
     .querySelectorAll("nav button")
-    .forEach((b) => b.classList.toggle("active", b.dataset.view === name));
+    .forEach((b) => b.classList.toggle("active", b.dataset.tab === currentTab));
   if (name === "map") {
     requestAnimationFrame(() => {
       map.resize();
@@ -919,7 +921,10 @@ async function setupOffline() {
   }
 }
 for (const b of document.querySelectorAll("nav button"))
-  b.onclick = () => nav(b.dataset.view);
+  b.onclick = () => {
+    nav(b.dataset.view, b.dataset.tab);
+    if (b.dataset.action === "activity") activity.openPanel();
+  };
 $("import").onclick = $("firstImport").onclick = () => $("files").click();
 $("files").onchange = async (e) => {
   const files = [...e.target.files];
