@@ -245,11 +245,11 @@
 
   #mapView .map-head {
     position: absolute;
-    top: calc(8px + env(safe-area-inset-top));
+    top: calc(5px + env(safe-area-inset-top));
     right: 12px;
     left: 12px;
     z-index: 7;
-    min-height: 56px;
+    min-height: 48px;
     margin: 0;
     padding: 6px;
     border-radius: 20px;
@@ -263,8 +263,8 @@
   }
 
   #mapView .map-head .icon {
-    width: 44px;
-    height: 44px;
+    width: 38px;
+    height: 38px;
     border: 0;
     border-radius: 15px;
     background: rgba(255,255,255,.72);
@@ -289,15 +289,15 @@
   }
 
   .map-quick-tools {
-    top: calc(76px + env(safe-area-inset-top));
+    top: calc(58px + env(safe-area-inset-top));
     left: 14px;
     right: 72px;
     gap: 6px;
   }
 
   .map-quick-tools > button:not(.map-source-button) {
-    min-width: 48px;
-    padding: 8px 10px;
+    min-width: 42px;
+    padding: 6px 8px;
     font-size: 0;
   }
 
@@ -314,6 +314,9 @@
   .map-source-button {
     min-width: 0;
     flex: 1;
+    min-height: 42px;
+    padding-top: 5px;
+    padding-bottom: 5px;
   }
 
   .map-source-button small {
@@ -321,13 +324,19 @@
   }
 
   #mapView .map-badge {
-    top: calc(130px + env(safe-area-inset-top));
+    top: calc(106px + env(safe-area-inset-top));
     left: 12px;
     max-width: calc(100% - 88px);
   }
 
   #mapView .map-buttons {
-    top: calc(130px + env(safe-area-inset-top));
+    top: calc(106px + env(safe-area-inset-top));
+  }
+
+  #mapView .map-buttons #zoomIn,
+  #mapView .map-buttons #zoomOut,
+  #mapView .map-buttons #fit {
+    display: none;
   }
 
   #mapView .activity-panel {
@@ -345,6 +354,33 @@
 
   #mapView .activity-panel:not(.is-expanded) {
     max-height: 142px;
+  }
+
+  #mapView .activity-panel.has-activity:not(.is-expanded) {
+    right: 12px;
+    bottom: calc(10px + env(safe-area-inset-bottom));
+    left: 12px;
+    max-height: 68px;
+  }
+
+  #mapView:has(.activity-panel.has-activity:not(.is-expanded)) .map-head,
+  #mapView:has(.activity-panel.has-activity:not(.is-expanded)) .map-quick-tools,
+  #mapView:has(.activity-panel.has-activity:not(.is-expanded)) .map-badge {
+    display: none;
+  }
+
+  #mapView:has(.activity-panel.has-activity:not(.is-expanded)),
+  #mapView:has(.activity-panel.has-activity:not(.is-expanded)) .map-wrap {
+    min-height: 100dvh;
+    height: 100dvh;
+  }
+
+  #mapView:has(.activity-panel.has-activity:not(.is-expanded)) .map-buttons {
+    top: calc(10px + env(safe-area-inset-top));
+  }
+
+  body:has(#mapView:not(.hide) .activity-panel.has-activity:not(.is-expanded)) nav {
+    display: none;
   }
 
   #mapView .activity-panel.is-expanded {
