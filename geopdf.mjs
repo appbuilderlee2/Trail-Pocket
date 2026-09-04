@@ -118,7 +118,7 @@ export function setupGeoPdf(ctx) {
       active = record;
       activeImage = img;
       activeOverlay = overlay;
-      if (!overlay && notify) ctx.openMap(record);
+      if (!overlay) ctx.openMap(record);
       map.setGeoPdf(record, img, { overlay, opacity });
       document.body.classList.toggle("geopdf-mode", !overlay);
       $("geoPdfBar").classList.toggle("hide", overlay);
