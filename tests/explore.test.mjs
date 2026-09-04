@@ -17,7 +17,7 @@ test('Web Mercator tile locations agree with route projection',()=>{
 });
 test('selection frame derives same bounds as drawn 15 percent inset',()=>{const c=project([138.82,-34.68]),whole=viewportBounds(c,5,1000,700),frame=viewportBounds(c,5,1000,700,.15);assert.ok(contains(whole,frame));assert.ok(frame.west>whole.west&&frame.east<whole.east&&frame.north<whole.north&&frame.south>whole.south);assert.ok(validateArea(frame)>1);});
 test('area validation prevents world downloads and invalid geometry',()=>{for(const b of [{west:-180,east:180,south:-85,north:85},{west:NaN,east:1,south:0,north:1},{west:2,east:1,south:0,north:1},{west:0,east:1,south:86,north:87}])assert.throws(()=>validateArea(b));});
-test('area limit is raised to 300 square kilometres',()=>{const allowed={west:138,east:138.15,south:-34.1,north:-34};assert.ok(validateArea(allowed)>100);assert.throws(()=>validateArea({west:138,east:138.3,south:-34.1,north:-34}),/300 km²/);});
+test('area limit is 150 square kilometres',()=>{const allowed={west:138,east:138.14,south:-34.1,north:-34};assert.ok(validateArea(allowed)>100);assert.throws(()=>validateArea({west:138,east:138.2,south:-34.1,north:-34}),/150 km²/);});
 test('disjoint downloaded regions leave gaps rather than claiming union coverage',()=>{const a={west:0,east:1,south:0,north:1},b={west:10,east:11,south:10,north:11},gap={west:4,east:5,south:4,north:5};assert.equal(overlaps(a,b),false);assert.equal(overlaps(a,gap)||overlaps(b,gap),false);assert.equal(contains(a,b),false);assert.equal(contains(a,{west:.2,east:.3,south:.2,north:.3}),true);});
 test('offline renderer makes no tile requests and retries require action',()=>{
   const prior=globalThis.Image,requests=[];globalThis.Image=class {set src(url){requests.push(url);}};

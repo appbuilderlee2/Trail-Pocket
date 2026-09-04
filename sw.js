@@ -1,5 +1,5 @@
 const PREFIX='trail-pocket-shell:'+new URL(self.registration.scope).pathname+':';
-const VERSION=PREFIX+'v2.3.2';
+const VERSION=PREFIX+'v2.3.3';
 const ASSETS=['./activity.mjs','./activity-core.mjs','./activity.css','./','./index.html','./style.css','./adventure.css','./explore.css','./explore-core.mjs','./online-map.mjs','./explore.mjs','./app.mjs','./core.mjs','./storage.mjs','./map.mjs','./adventure.mjs','./adventure-core.mjs','./manifest.webmanifest','./assets/icon-192.png','./assets/icon-512.png','./assets/devils-route.json','./assets/devils-base.json'];
 self.addEventListener('install',e=>e.waitUntil(caches.open(VERSION).then(c=>c.addAll(ASSETS.map(p=>new Request(new URL(p,self.registration.scope),{cache:'reload'}))))));
 self.addEventListener('activate',e=>e.waitUntil((async()=>{for(const key of await caches.keys())if(key.startsWith(PREFIX)&&key!==VERSION)await caches.delete(key);await self.clients.claim();})()));
