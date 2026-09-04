@@ -1,4 +1,11 @@
-# Trail Pocket PWA v3.0.2
+# Trail Pocket PWA v3.1.0
+
+## v3.1.0 Mobile activity UI
+
+- Full-map mobile layout with a draggable-style activity bottom sheet.
+- Compact and expanded activity states with six outdoor-readable metrics.
+- One-thumb pause, resume and finish actions, plus quick GPS and history access.
+- Four-tab mobile navigation: Explore, Saved, Offline and Activity.
 
 ## v3.0.2 GeoPDF 來源狀態同步
 
