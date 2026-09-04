@@ -18,6 +18,12 @@
   box-shadow: 0 5px 18px rgba(24, 61, 49, 0.12);
 }
 
+.map-quick-tools button.primary {
+  color: white;
+  background: var(--ink);
+  border-color: var(--ink);
+}
+
 .map-source-button {
   display: flex;
   align-items: center;
