@@ -21,7 +21,7 @@ test("backup round trip includes complete durable data but excludes active recor
   const backup = createBackup(sample, 0),
     restored = validateBackup(JSON.parse(JSON.stringify(backup)));
   assert.equal(backup.format, BACKUP_FORMAT);
-  assert.equal(backup.appVersion, "3.1.1");
+  assert.equal(backup.appVersion, "3.1.2");
   assert.equal(backup.created, "1970-01-01T00:00:00.000Z");
   assert.deepEqual(backupCounts(restored), {
     routes: 1,
