@@ -4,7 +4,7 @@ import * as store from './storage.mjs';
 
 export function setupAdventure(ctx){
   const $=id=>document.getElementById(id),map=ctx.map;
-  let layers={forest:true,water:true,roads:true,labels:true,waypoints:true,slope:false},alertSettings={enabled:false,threshold:100,sound:false},deviation={},audio=null,draft=null,waypoints=[],weatherBusy=false,weatherSerial=0;
+  let layers={forest:true,water:true,roads:true,buildings:true,pois:true,labels:true,waypoints:true,slope:false},alertSettings={enabled:false,threshold:100,sound:false},deviation={armed:false},audio=null,draft=null,waypoints=[],weatherBusy=false,weatherSerial=0;
   const el=(tag,text,cls)=>{const n=document.createElement(tag);if(text!==undefined)n.textContent=text;if(cls)n.className=cls;return n;};
   const btn=(text,fn)=>{const n=el('button',text);n.onclick=fn;return n;};
   const warn=e=>ctx.toast(ctx.failure(e));
@@ -17,32 +17,32 @@ export function setupAdventure(ctx){
   $('mapView').insertAdjacentHTML('beforeend',`<div id="deviationBanner" class="deviation hide" role="alert"></div><div id="editorBar" class="editor-bar hide"><b>手動畫線 · 紫色虛線</b><p>拖動地圖，將中央十字移到目標，再按「加入中心點」。線段不會自動沿步道，請核對可通行性。</p><div id="draftInfo" role="status"></div><div class="row"><button id="addPoint">＋ 加入中心點</button><button id="undoPoint">撤回末點</button><button id="reverseDraft">反轉方向</button><button id="saveDraft" class="primary">另存新路線</button><button id="cancelDraft">取消編輯</button></div></div>`);
   document.body.insertAdjacentHTML('beforeend',`
     <dialog id="layersDialog"><h2>地圖圖層</h2><p>道路、林地、水域及名稱開關只影響「已下載離線底圖」；在線完整地圖為固定圖層。路線坡度及標記兩種模式均可用。</p><div id="layerChoices" class="check-list"></div><p class="notice">坡度只根據 GPX／KML 高度，唔係整片地形。綠 &lt;5% · 橙 5–15% · 紅 ≥15% · 灰：缺少高度或點距太短。高度誤差可能造成異常顏色。</p><p>林地唔代表全程有遮蔭；此版未提供衛星、等高線或山泥傾瀉風險圖。</p><button data-close="layersDialog" class="primary">完成</button></dialog>
-    <dialog id="alertsDialog"><h2>偏離路線提醒</h2><label class="check"><input id="alertsEnabled" type="checkbox"> 開啟前景提醒</label><label for="alertThreshold">提醒距離</label><select id="alertThreshold"><option value="50">50 m（較敏感）</option><option value="100" selected>100 m</option><option value="200">200 m</option></select><label class="check"><input id="alertSound" type="checkbox"> 聲音提示</label><button id="testAlert">測試提示聲</button><p class="notice">需要同時「開始定位」。連續 3 個可靠位置、至少持續 10 秒先提醒；GPS 精度差會暫停判斷。iPhone 鎖屏／背景、靜音模式可能冇聲或停止定位，唔可以代替留意路牌。</p><button data-close="alertsDialog" class="primary">完成</button></dialog>
+    <dialog id="alertsDialog"><h2>偏離路線提醒</h2><label class="check"><input id="alertsEnabled" type="checkbox"> 開啟前景提醒</label><label for="alertThreshold">提醒距離</label><select id="alertThreshold"><option value="50">50 m（較敏感）</option><option value="100" selected>100 m</option><option value="200">200 m</option></select><label class="check"><input id="alertSound" type="checkbox"> 聲音提示</label><button id="testAlert">測試提示聲</button><p class="notice">需要同時「開始定位」。先到達路線約 300 m 範圍才啟動監察；連續 3 個可靠位置、至少持續 10 秒先提醒。GPS 精度差會暫停判斷。iPhone 鎖屏／背景、靜音模式可能冇聲或停止定位，唔可以代替留意路牌。</p><button data-close="alertsDialog" class="primary">完成</button></dialog>
     <dialog id="plannerDialog"><h2>路線助手</h2><p id="plannerName"></p><div class="form-grid"><label>步速 km/h<input id="planSpeed" type="number" min="1" max="8" step="0.5" value="3"></label><label>總休息 分鐘<input id="planRest" type="number" min="0" max="600" value="20"></label><label>每段 km<input id="planStage" type="number" min="0.5" max="20" step="0.5" value="2"></label></div><button id="calculatePlan">計算行程</button><div id="planOutput"></div><div id="elevationProfile"></div><p class="fineprint">本機規則式估算，唔係 AI 導遊或安全評級。距離只計匯入軌跡，唔自動加入回程。完整高度時，每上升 600 m 加 1 小時；未考慮路況、負重或下坡難度。分段標記唔代表安全休息點。</p><button data-close="plannerDialog" class="primary">關閉</button></dialog>
     <dialog id="weatherDialog"><h2>路線附近天氣</h2><p id="weatherName"></p><div id="weatherOutput"></div><p class="fineprint">按更新會將路線中點（約 10 m 精度）送往 Open-Meteo；唔會傳送 GPS 即時位置或整個檔案。顯示該區模型預報，唔係沿線實測，亦未提供即時封路、火警或現場積雪狀況。</p><button id="refreshWeather">同意並更新天氣</button><p><a href="https://open-meteo.com/" target="_blank" rel="noopener">Weather data by Open-Meteo</a> · <a href="https://creativecommons.org/licenses/by/4.0/" target="_blank" rel="noopener">CC BY 4.0</a></p><button data-close="weatherDialog" class="primary">關閉</button></dialog>
     <dialog id="customDialog"><h2>自訂路線</h2><p>複製後編輯，不會改動原始路線。新增點以直線連接，唔會自動尋找可行步道。</p><div class="stack"><button id="editCopy">複製目前路線再編輯</button><button id="drawNew">喺目前地圖畫新路線</button><button id="exportGPX">匯出目前路線 GPX</button></div><button data-close="customDialog" class="primary">關閉</button></dialog>
     <dialog id="startDialog"><h2>選擇起始地區</h2><p>輸入起點附近座標，之後可拖動地圖加點。未下載底圖時只會顯示路線。</p><label>緯度<input id="startLat" type="number" min="-85" max="85" step="any" placeholder="例如 -34.68"></label><label>經度<input id="startLon" type="number" min="-180" max="180" step="any" placeholder="例如 138.82"></label><button id="startDrawing" class="primary">開始畫線</button><button data-close="startDialog">取消</button></dialog>
     <dialog id="saveDraftDialog"><h2>另存自訂路線</h2><label>新路線名稱<input id="draftName" maxlength="160"></label><p>儲存後到「離線下載」下載新路線範圍；不會假設原有底圖覆蓋新路線。</p><button id="confirmDraft" class="primary">儲存新路線</button><button data-close="saveDraftDialog">繼續編輯</button></dialog>`);
   for(const b of document.querySelectorAll('[data-close]'))b.onclick=()=>$(b.dataset.close).close();
-  for(const [key,label] of Object.entries({roads:'道路及步道',forest:'林地／地表',water:'河流及水域',labels:'道路名稱',waypoints:'路線標記',slope:'路線坡度著色'})){
+  for(const [key,label] of Object.entries({roads:'道路及步道',buildings:'建築物',pois:'設施及地點',forest:'林地／地表',water:'河流及水域',labels:'名稱標籤',waypoints:'路線標記',slope:'路線坡度著色'})){
     const l=el('label',undefined,'check'),input=el('input');input.type='checkbox';input.checked=layers[key];input.dataset.layer=key;input.onchange=async()=>{layers[key]=input.checked;map.setLayers(layers);try{await store.put('settings',{id:'layers',value:layers});}catch(e){warn(e);}};l.append(input,document.createTextNode(label));$('layerChoices').append(l);
   }
   async function init(){try{const saved=await store.get('settings','layers');if(saved?.value)Object.assign(layers,saved.value);map.setLayers(layers);for(const input of document.querySelectorAll('[data-layer]'))input.checked=Boolean(layers[input.dataset.layer]);const a=await store.get('settings','alerts');if(a?.value)Object.assign(alertSettings,a.value);$('alertsEnabled').checked=alertSettings.enabled;$('alertSound').checked=alertSettings.sound;$('alertThreshold').value=String(alertSettings.threshold);}catch(e){warn(e);}}
   async function unlockAudio(){try{const Audio=window.AudioContext||window.webkitAudioContext;if(!Audio)throw Error('此瀏覽器未支援提示聲。');audio??=new Audio();await audio.resume();return true;}catch(e){warn(e);return false;}}
   function beep(){if(audio?.state!=='running')return;try{const o=audio.createOscillator(),g=audio.createGain();o.frequency.value=740;g.gain.setValueAtTime(.12,audio.currentTime);g.gain.exponentialRampToValueAtTime(.001,audio.currentTime+.6);o.connect(g);g.connect(audio.destination);o.start();o.stop(audio.currentTime+.6);o.onended=()=>{o.disconnect();g.disconnect();};}catch{}}
-  async function saveAlerts(){alertSettings={enabled:$('alertsEnabled').checked,threshold:Number($('alertThreshold').value),sound:$('alertSound').checked};deviation={};$('deviationBanner').classList.add('hide');if(alertSettings.sound)await unlockAudio();try{await store.put('settings',{id:'alerts',value:alertSettings});if(alertSettings.enabled)ctx.toast('提醒已開啟；請開始 GPS 定位並保持 App 在前景。');}catch(e){warn(e);}}
+  async function saveAlerts(){alertSettings={enabled:$('alertsEnabled').checked,threshold:Number($('alertThreshold').value),sound:$('alertSound').checked};deviation={armed:false};$('deviationBanner').classList.add('hide');if(alertSettings.sound)await unlockAudio();try{await store.put('settings',{id:'alerts',value:alertSettings});if(alertSettings.enabled)ctx.toast('提醒已開啟；到達路線 300 m 範圍後先會開始偏航監察。');}catch(e){warn(e);}}
   $('alertsEnabled').onchange=$('alertThreshold').onchange=$('alertSound').onchange=saveAlerts;
   $('testAlert').onclick=async()=>{if(await unlockAudio()){beep();ctx.toast('提示聲已測試；請檢查音量。');}};
   function onFix(fix){
     const r=ctx.getRoute(),banner=$('deviationBanner');if(!fix||!r||!alertSettings.enabled||draft){banner.classList.add('hide');deviation={};return;}
     const d=nearestDistance([fix.coords.longitude,fix.coords.latitude],r.segments);
     deviation=advanceDeviation(deviation,{distance:d,accuracy:fix.coords.accuracy,timestamp:fix.timestamp},alertSettings.threshold);
-    banner.classList.toggle('hide',deviation.status==='on-route'||deviation.status==='checking');
+    banner.classList.toggle('hide',['on-route','checking','not-started'].includes(deviation.status));
     banner.textContent=deviation.status==='uncertain'?'偏航判斷暫停：位置過舊或 GPS 精度不足。':`你可能偏離路線約 ${Math.round(d)} m。請停喺安全位置，核對地圖及路牌。`;
     banner.classList.toggle('uncertain',deviation.status==='uncertain');
     if(deviation.notify&&!document.hidden){if(alertSettings.sound)beep();}
   }
-  function routeChanged(){deviation={};$('deviationBanner').classList.add('hide');}
+  function routeChanged(){deviation={armed:false};$('deviationBanner').classList.add('hide');}
   function openPlanner(){if(!ctx.getRoute())return;const r=ctx.getRoute();$('plannerName').textContent=r.name;$('planSpeed').value=r.plan?.speed||3;$('planRest').value=r.plan?.rest??20;$('planStage').value=r.plan?.stage||2;calculatePlan(false);$('plannerDialog').showModal();}
   async function calculatePlan(save=true){
     const r=ctx.getRoute();if(!r)return;const out=$('planOutput');out.replaceChildren();
@@ -97,6 +97,6 @@ export function setupAdventure(ctx){
   $('cancelDraft').onclick=finishEditor;
   $('saveDraft').onclick=()=>$('saveDraftDialog').showModal();
   $('confirmDraft').onclick=async()=>{if(!draft)return;$('confirmDraft').disabled=true;try{const r=createCustomRoute($('draftName').value,draft,waypoints);await store.put('routes',r);$('saveDraftDialog').close();draft=null;waypoints=[];map.setDraft(null);$('editorBar').classList.add('hide');await ctx.refresh();await ctx.selectRoute(r.id);ctx.toast('新路線已儲存；請下載其離線底圖。');}catch(e){warn(e);}finally{$('confirmDraft').disabled=false;}};
-  document.addEventListener('visibilitychange',()=>{if(document.hidden){deviation={};if(alertSettings.enabled)$('deviationBanner').textContent='回到前景後等候新 GPS 位置。';}});
+  document.addEventListener('visibilitychange',()=>{if(document.hidden){deviation={armed:Boolean(deviation.armed)};if(alertSettings.enabled)$('deviationBanner').textContent='回到前景後等候新 GPS 位置。';}});
   return {init,onFix,routeChanged,isEditing:()=>draft!==null};
 }

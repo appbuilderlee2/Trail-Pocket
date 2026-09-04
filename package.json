@@ -1,1 +1,1 @@
-{"name":"trail-pocket-pwa","version":"2.3.0","private":true,"type":"module","description":"Local-first hiking routes and selectable offline vector maps","scripts":{"test":"node --test tests/*.test.mjs"},"devDependencies":{"@xmldom/xmldom":"0.9.12","fake-indexeddb":"6.2.5"}}
+{"name":"trail-pocket-pwa","version":"2.3.1","private":true,"type":"module","description":"Local-first hiking routes and selectable offline vector maps","scripts":{"test":"node --test tests/*.test.mjs"},"devDependencies":{"@xmldom/xmldom":"0.9.12","fake-indexeddb":"6.2.5"}}

@@ -37,12 +37,13 @@ export function toGPX(route){
 }
 // Three distinct, fresh fixes over >=10s. GPS uncertainty must lie beyond threshold.
 export function advanceDeviation(previous={},sample,threshold=100,now=Date.now()){
-  const state={count:0,since:0,active:false,lastTimestamp:0,lastNotify:0,...previous};
+  const state={count:0,since:0,active:false,lastTimestamp:0,lastNotify:0,armed:true,...previous};
   const {distance:d,accuracy:a,timestamp:t}=sample||{};
   if(![d,a,t].every(Number.isFinite)||a<0||a>Math.min(50,threshold/2)||now-t>20000||t>now+2000){return {...state,count:0,since:0,status:'uncertain',notify:false};}
   if(t<=state.lastTimestamp)return {...state,notify:false};
   if(state.lastTimestamp&&t-state.lastTimestamp>20000){state.count=0;state.since=0;}
   state.lastTimestamp=t;
+  if(!state.armed){if(d-a<=Math.max(300,threshold*2))state.armed=true;else return {...state,count:0,since:0,status:'not-started',notify:false};}
   if(d+a<threshold*.6)return {...state,count:0,since:0,active:false,status:'on-route',notify:false};
   if(d-a<=threshold)return {...state,count:0,since:0,status:state.active?'off-route':'checking',notify:false};
   state.count++;if(state.count===1)state.since=t;
