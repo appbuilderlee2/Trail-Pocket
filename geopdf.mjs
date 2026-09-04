@@ -8,6 +8,8 @@ export function setupGeoPdf(ctx) {
     map = ctx.map;
   let items = [],
     active = null,
+    activeImage = null,
+    activeOverlay = false,
     busy = false;
   const el = (tag, text, cls) => {
     const n = document.createElement(tag);
@@ -100,29 +102,46 @@ export function setupGeoPdf(ctx) {
       $("importGeoPdf").disabled = false;
     }
   }
-  async function open(id) {
+  async function open(
+    id,
+    { overlay = false, opacity = 0.68, notify = true } = {},
+  ) {
     try {
       const record =
         typeof id === "string" ? await store.get("geopdfs", id) : id;
       if (!record) throw Error("GeoPDF 已不存在。");
       $("geoPdfProgress").textContent = "正在開啟離線 GeoPDF…";
-      const img = await image(record);
+      const img =
+        active?.id === record.id && activeImage
+          ? activeImage
+          : await image(record);
       active = record;
-      ctx.openMap(record);
-      map.setGeoPdf(record, img);
-      document.body.classList.add("geopdf-mode");
-      $("geoPdfBar").classList.remove("hide");
+      activeImage = img;
+      activeOverlay = overlay;
+      if (!overlay && notify) ctx.openMap(record);
+      map.setGeoPdf(record, img, { overlay, opacity });
+      document.body.classList.toggle("geopdf-mode", !overlay);
+      $("geoPdfBar").classList.toggle("hide", overlay);
       $("geoPdfProgress").textContent = "";
+      if (notify) ctx.onChange?.({ type: "open", id: record.id, overlay });
     } catch (e) {
       ctx.toast(ctx.failure(e));
     }
   }
-  function close(showMap = false) {
+  function setOpacity(opacity) {
+    if (active && activeImage && activeOverlay)
+      map.setGeoPdf(active, activeImage, { overlay: true, opacity });
+  }
+  function close(showMap = false, notify = true) {
+    const wasExclusive = Boolean(active && !activeOverlay);
     active = null;
+    activeImage = null;
+    activeOverlay = false;
     map.setGeoPdf(null, null);
     document.body.classList.remove("geopdf-mode");
     $("geoPdfBar").classList.add("hide");
-    ctx.closeMap(showMap);
+    if (wasExclusive) ctx.closeMap(showMap);
+    if (notify) ctx.onChange?.({ type: "close" });
   }
   function render() {
     const host = $("geoPdfList");
@@ -174,7 +193,7 @@ export function setupGeoPdf(ctx) {
     render();
   }
   map.onGeoFixState = (state) => {
-    if (!active) return;
+    if (!active || activeOverlay) return;
     $("mapBadge").textContent =
       state === "inside"
         ? "GeoPDF 地理定位 · GPS 藍點在圖幅內"
@@ -182,5 +201,15 @@ export function setupGeoPdf(ctx) {
           ? "目前 GPS 在呢張 GeoPDF 圖幅之外"
           : "GeoPDF 地理定位 · 等候 GPS";
   };
-  return { init: refresh, refresh, close, isOpen: () => Boolean(active) };
+  return {
+    init: refresh,
+    refresh,
+    open,
+    close,
+    setOpacity,
+    items: () => items.map((item) => ({ ...item })),
+    activeId: () => active?.id || null,
+    isOverlay: () => activeOverlay,
+    isOpen: () => Boolean(active),
+  };
 }
