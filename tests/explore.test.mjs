@@ -35,7 +35,7 @@ test('offline renderer makes no tile requests and retries require action',()=>{
 });
 test('all new static modules deploy and precache, online tiles are not precached',async()=>{
   const sw=await readFile(new URL('../sw.js',import.meta.url),'utf8'),workflow=await readFile(new URL('../.github/workflows/pages.yml',import.meta.url),'utf8');
-  for(const asset of ['backup.mjs','wake-lock.mjs','offline-download.mjs','explore.mjs','explore-core.mjs','online-map.mjs','terrain.mjs','explore.css']){assert.ok(sw.includes("'./"+asset+"'"));assert.ok(workflow.includes(asset));}
+  for(const asset of ['backup.mjs','wake-lock.mjs','offline-download.mjs','offline-search.mjs','routing-core.mjs','routing-client.mjs','route-worker.mjs','offline-package.mjs','explore.mjs','explore-core.mjs','online-map.mjs','terrain.mjs','explore.css']){assert.ok(sw.includes("'./"+asset+"'"));assert.ok(workflow.includes(asset));}
   assert.equal(sw.includes('tile.openstreetmap.org'),false);
   const areaCode=await readFile(new URL('../explore.mjs',import.meta.url),'utf8');assert.equal(areaCode.includes('tile.openstreetmap.org'),false);
 });
