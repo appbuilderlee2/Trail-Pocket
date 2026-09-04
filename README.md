@@ -1,4 +1,12 @@
-# Trail Pocket PWA v2.8.0
+# Trail Pocket PWA v2.9.0
+
+## v2.9.0 官方 GeoPDF 離線定位
+
+- 可匯入帶 `/VP`、`/Measure`、`/GPTS`、`/LPTS` 地理資訊的官方 Geospatial PDF；多圖幅 PDF 會選擇最大有效主圖，避免誤用位置索引小圖。
+- PDF 在裝置內轉成最高 4096 px 的清晰 WebP／PNG 並保存到 IndexedDB；原檔、地理控制點及 GPS 不會上傳。
+- GeoPDF 可完全離線縮放、平移、顯示 GPS 藍點、精度圈、比例尺及已記錄活動軌跡；圖幅外位置會明確提示，不會把藍點硬放入地圖。
+- GeoPDF 已納入離線自檢、完整 JSON 備份／還原及 Service Worker 外殼。單一輸入 PDF 上限 30 MB，轉換後記錄上限 32 MB。
+- 暫不支援普通掃描 PDF、受密碼保護 PDF、未知地理編碼或只使用 TerraGo 私有擴充的檔案；匯入失敗不會猜測座標。
 
 ## v2.8.0 完整離線包、搜尋及步道路由
 

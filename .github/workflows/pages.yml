@@ -31,8 +31,9 @@ jobs:
 
       - name: Prepare static PWA
         run: |
-          mkdir -p dist/assets
-          cp backup.mjs wake-lock.mjs offline-download.mjs offline-search.mjs routing-core.mjs routing-client.mjs route-worker.mjs offline-package.mjs activity.mjs activity-core.mjs activity.css index.html style.css adventure.css app.mjs core.mjs storage.mjs map.mjs adventure.mjs adventure-core.mjs explore.mjs explore-core.mjs online-map.mjs terrain.mjs explore.css sw.js manifest.webmanifest dist/
+          mkdir -p dist/assets dist/vendor
+          cp backup.mjs wake-lock.mjs offline-download.mjs offline-search.mjs routing-core.mjs routing-client.mjs route-worker.mjs offline-package.mjs activity.mjs activity-core.mjs activity.css geopdf.mjs geopdf-core.mjs geopdf-parser.mjs geopdf-render.mjs geopdf.css index.html style.css adventure.css app.mjs core.mjs storage.mjs map.mjs adventure.mjs adventure-core.mjs explore.mjs explore-core.mjs online-map.mjs terrain.mjs explore.css sw.js manifest.webmanifest dist/
+          cp vendor/pdf-lib.min.mjs vendor/pdf.min.mjs vendor/pdf.worker.min.mjs vendor/pdf-lib-LICENSE.md vendor/pdfjs-LICENSE dist/vendor/
           cp assets/icon-192.png assets/icon-512.png assets/devils-route.json assets/devils-base.json dist/assets/
           touch dist/.nojekyll
 

@@ -1,7 +1,58 @@
-export const BACKUP_FORMAT='trail-pocket-backup',BACKUP_VERSION=1,MAX_BACKUP_BYTES=300*1024*1024;
-const stores=['routes','maps','areas','activities','settings'];
-const jsonSize=value=>new Blob([JSON.stringify(value)]).size;
-function records(value,name){if(!Array.isArray(value))throw Error(`備份的 ${name} 格式不正確。`);for(const item of value)if(!item||typeof item!=='object'||typeof item.id!=='string'||!item.id||item.id.length>240)throw Error(`備份的 ${name} 含無效記錄。`);return value;}
-export function createBackup(data,now=Date.now()){const clean={};for(const name of stores)clean[name]=records(data[name]||[],name).filter(item=>name!=='settings'||item.id!=='active-activity');const backup={format:BACKUP_FORMAT,version:BACKUP_VERSION,created:new Date(now).toISOString(),appVersion:'2.8.0',data:clean};if(jsonSize(backup)>MAX_BACKUP_BYTES)throw Error('備份超過 300 MB；請先刪除不需要的離線地圖再備份。');return backup;}
-export function validateBackup(value){if(!value||value.format!==BACKUP_FORMAT||value.version!==BACKUP_VERSION||!value.data)throw Error('不是受支援的 Trail Pocket 備份。');const clean={};for(const name of stores)clean[name]=records(value.data[name],name).filter(item=>name!=='settings'||item.id!=='active-activity');const result={...value,data:clean};if(jsonSize(result)>MAX_BACKUP_BYTES)throw Error('備份超過 300 MB，為保護裝置記憶體已停止。');return result;}
-export function backupCounts(backup){return Object.fromEntries(stores.map(name=>[name,backup.data[name].length]));}
+export const BACKUP_FORMAT = "trail-pocket-backup",
+  BACKUP_VERSION = 1,
+  MAX_BACKUP_BYTES = 300 * 1024 * 1024;
+const stores = ["routes", "maps", "areas", "activities", "settings", "geopdfs"];
+const jsonSize = (value) => new Blob([JSON.stringify(value)]).size;
+function records(value, name) {
+  if (!Array.isArray(value)) throw Error(`備份的 ${name} 格式不正確。`);
+  for (const item of value)
+    if (
+      !item ||
+      typeof item !== "object" ||
+      typeof item.id !== "string" ||
+      !item.id ||
+      item.id.length > 240
+    )
+      throw Error(`備份的 ${name} 含無效記錄。`);
+  return value;
+}
+export function createBackup(data, now = Date.now()) {
+  const clean = {};
+  for (const name of stores)
+    clean[name] = records(data[name] || [], name).filter(
+      (item) => name !== "settings" || item.id !== "active-activity",
+    );
+  const backup = {
+    format: BACKUP_FORMAT,
+    version: BACKUP_VERSION,
+    created: new Date(now).toISOString(),
+    appVersion: "2.9.0",
+    data: clean,
+  };
+  if (jsonSize(backup) > MAX_BACKUP_BYTES)
+    throw Error("備份超過 300 MB；請先刪除不需要的離線地圖再備份。");
+  return backup;
+}
+export function validateBackup(value) {
+  if (
+    !value ||
+    value.format !== BACKUP_FORMAT ||
+    value.version !== BACKUP_VERSION ||
+    !value.data
+  )
+    throw Error("不是受支援的 Trail Pocket 備份。");
+  const clean = {};
+  for (const name of stores)
+    clean[name] = records(value.data[name] || [], name).filter(
+      (item) => name !== "settings" || item.id !== "active-activity",
+    );
+  const result = { ...value, data: clean };
+  if (jsonSize(result) > MAX_BACKUP_BYTES)
+    throw Error("備份超過 300 MB，為保護裝置記憶體已停止。");
+  return result;
+}
+export function backupCounts(backup) {
+  return Object.fromEntries(
+    stores.map((name) => [name, backup.data[name].length]),
+  );
+}
