@@ -383,6 +383,13 @@
     display: none;
   }
 
+  body:has(#mapView:not(.hide) .activity-panel.has-activity:not(.is-expanded)) > main {
+    height: 100dvh;
+    min-height: 100dvh;
+    padding-bottom: 0;
+    overflow: hidden;
+  }
+
   #mapView .activity-panel.is-expanded {
     padding: 15px 18px 16px;
   }
