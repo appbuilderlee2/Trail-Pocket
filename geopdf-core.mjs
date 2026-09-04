@@ -123,6 +123,48 @@ export function geoToPage(transform, point) {
   ];
   return p.every(Number.isFinite) ? p : null;
 }
+export function pageToGeo(transform, point) {
+  if (
+    !transform ||
+    !Array.isArray(point) ||
+    point.length < 2 ||
+    !point.every(Number.isFinite)
+  )
+    return null;
+  const m = transform.matrix,
+    a = m[0],
+    b = m[1],
+    c = m[2],
+    d = m[3],
+    e = m[4],
+    f = m[5],
+    g = m[6],
+    h = m[7],
+    i = 1,
+    inverse = [
+      e * i - f * h,
+      c * h - b * i,
+      b * f - c * e,
+      f * g - d * i,
+      a * i - c * g,
+      c * d - a * f,
+      d * h - e * g,
+      b * g - a * h,
+      a * e - b * d,
+    ],
+    u = point[0],
+    v = point[1],
+    denominator = inverse[6] * u + inverse[7] * v + inverse[8];
+  if (!Number.isFinite(denominator) || Math.abs(denominator) < 1e-10)
+    return null;
+  const x = (inverse[0] * u + inverse[1] * v + inverse[2]) / denominator,
+    y = (inverse[3] * u + inverse[4] * v + inverse[5]) / denominator,
+    geo = [
+      transform.center[0] + x * transform.spread[0],
+      transform.center[1] + y * transform.spread[1],
+    ];
+  return validCoordinate(geo) ? geo : null;
+}
 export function pointInFootprint(transform, point) {
   const polygon = transform?.footprint;
   if (!polygon?.length || !validCoordinate(point)) return false;
