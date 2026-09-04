@@ -1,21 +1,28 @@
 import {areaKm2,mapQuery,validateMap,project,validCoordinate} from './core.mjs';
-import {validateArea,overlaps,contains} from './explore-core.mjs';
+import {validateArea,overlaps,contains,placeSearchURL,parsePlaceResults} from './explore-core.mjs';
 import {OnlineMap} from './online-map.mjs';
 import * as store from './storage.mjs';
 
 export function setupExplore(ctx){
   const $=id=>document.getElementById(id),map=ctx.map;
-  let mode='online',selecting=false,ready=false,areas=[],routeMaps=[],timer,serial=0,job=null,lockedBounds=null,tileState={},loadedKey=null;
+  let mode='online',selecting=false,ready=false,areas=[],routeMaps=[],timer,serial=0,job=null,lockedBounds=null,tileState={},loadedKey=null,lastSearch=0,searchJob=null;
   const el=(tag,text,cls)=>{const n=document.createElement(tag);if(text!==undefined)n.textContent=text;if(cls)n.className=cls;return n;};
   const button=(text,fn)=>{const b=el('button',text);b.onclick=fn;return b;};
   document.querySelector('.trail-tools').insertAdjacentHTML('beforebegin',`<div class="explore-tools"><label>底圖 <select id="baseMode"><option value="online">在線完整地圖</option><option value="offline">已下載離線底圖</option></select></label><button id="jumpPlace">前往位置</button><button id="selectArea" class="primary">▣ 選擇離線範圍</button></div><div id="exploreStatus" class="muted" role="status">拖動或縮放，瀏覽其他地區。</div><div id="areaControls" class="area-controls hide"><label>區域名稱 <input id="areaName" maxlength="100" placeholder="例如 Para Wirra 北部"></label><p id="areaSize" role="status"></p><div class="row"><button id="saveArea" class="primary">下載框內底圖</button><button id="cancelArea">取消選取</button><button id="abortArea" class="hide">取消下載</button></div><p class="fineprint">下載 OSM 道路、步道、水域、林地、建築物、設施及地名。配色及細節與在線地圖不同；不包含在線圖磚、衛星或等高線。每區上限 150 km²／32 MB；若完整資料超出上限，請縮小範圍。</p></div>`);
   document.querySelector('.map-wrap').insertAdjacentHTML('beforeend','<div id="areaFrame" class="area-frame hide"><span>離線下載範圍</span></div>');
   $('offlineView').querySelector('.storage-card').insertAdjacentHTML('afterend','<section class="area-library"><div class="row"><h2>我的離線區域</h2><button id="chooseFromOffline">＋ 地圖選區</button></div><div id="areaList"></div><p id="areaEmpty">未有獨立區域。毋須 GPX／KML，可直接喺地圖揀位置下載。</p></section><h2>路線附近底圖</h2>');
-  document.body.insertAdjacentHTML('beforeend',`<dialog id="jumpDialog"><h2>前往位置</h2><p>揀一個地區，或者輸入經緯度，再喺地圖拖動／縮放。</p><div id="placeChoices" class="row"></div><label>緯度<input id="jumpLat" type="number" min="-85" max="85" step="any" placeholder="例如 -34.68"></label><label>經度<input id="jumpLon" type="number" min="-180" max="180" step="any" placeholder="例如 138.82"></label><button id="jumpCoordinates">前往座標</button><button id="closeJump" class="primary">關閉</button></dialog>`);
-  for(const [name,p,units] of [['阿德萊德',[138.6,-34.93],80],['Para Wirra',[138.82,-34.68],15],['Belair',[138.65,-35.0],15],['香港',[114.17,22.3],60],['世界',[20,15],30000]])$('placeChoices').append(button(name,()=>jump(p,units)));
+  document.body.insertAdjacentHTML('beforeend',`<dialog id="jumpDialog"><h2>搜尋及選擇地圖位置</h2><p>搜尋地名或使用目前位置，選定後會直接開啟離線範圍框。</p><label for="placeSearch">地名</label><input id="placeSearch" maxlength="120" autocomplete="off" placeholder="例如 Morialta Conservation Park"><div class="row jump-actions"><button id="searchPlace">搜尋地名</button><button id="jumpCurrent">◎ 使用目前位置</button></div><p id="placeStatus" class="muted" role="status"></p><div id="searchResults" class="search-results"></div><details><summary>常用地區或經緯度</summary><div id="placeChoices" class="row"></div><label>緯度<input id="jumpLat" type="number" min="-85" max="85" step="any" placeholder="例如 -34.68"></label><label>經度<input id="jumpLon" type="number" min="-180" max="180" step="any" placeholder="例如 138.82"></label><button id="jumpCoordinates">前往座標並框選</button></details><p class="fineprint">地名會傳送至 OpenStreetMap Nominatim 搜尋服務；不設自動完成，只會在按「搜尋地名」時查詢。搜尋結果會暫存在此裝置。目前位置只用來移動地圖，之後下載時所選範圍會傳送至 Overpass。</p><button id="closeJump" class="primary">關閉</button></dialog>`);
+  for(const [name,p,units] of [['阿德萊德',[138.6,-34.93],40],['Para Wirra',[138.82,-34.68],15],['Belair',[138.65,-35.0],15],['香港',[114.17,22.3],40]])$('placeChoices').append(button(name,()=>choose(p,name,units)));
   function jump(p,units){ctx.pauseFollow();ctx.nav('map');map.center=project(p);map.units=units;if(units===30000)map.fitBounds({west:-179.9,east:179.9,south:-85,north:85});else map.draw();$('jumpDialog').close();}
-  $('jumpPlace').onclick=()=>$('jumpDialog').showModal();$('closeJump').onclick=()=>$('jumpDialog').close();
-  $('jumpCoordinates').onclick=()=>{const la=$('jumpLat').value,lo=$('jumpLon').value,p=[Number(lo),Number(la)];if(!la.trim()||!lo.trim()||!validCoordinate(p)){ctx.toast('請輸入有效經緯度（緯度 ±85°）。');return;}jump(p,10);};
+  function choose(p,name,units=20){jump(p,units);startSelection(name);}
+  $('jumpPlace').textContent='搜尋／目前位置';$('jumpPlace').onclick=()=>{$('placeStatus').textContent='';$('searchResults').replaceChildren();$('jumpDialog').showModal();};$('closeJump').onclick=()=>$('jumpDialog').close();
+  $('jumpCoordinates').onclick=()=>{const la=$('jumpLat').value,lo=$('jumpLon').value,p=[Number(lo),Number(la)];if(!la.trim()||!lo.trim()||!validCoordinate(p)){ctx.toast('請輸入有效經緯度（緯度 ±85°）。');return;}choose(p,'自選位置',10);};
+  $('jumpCurrent').onclick=()=>{if(!isSecureContext||!navigator.geolocation){$('placeStatus').textContent='此瀏覽器未能使用目前位置。';return;}$('placeStatus').textContent='正在取得目前位置…';$('jumpCurrent').disabled=true;navigator.geolocation.getCurrentPosition(p=>{const point=[p.coords.longitude,p.coords.latitude];$('jumpCurrent').disabled=false;choose(point,'目前位置',15);},e=>{$('jumpCurrent').disabled=false;$('placeStatus').textContent=e.code===1?'未獲定位授權，請到瀏覽器設定允許定位。':'暫時未能取得位置，請到空曠位置再試。';},{enableHighAccuracy:true,maximumAge:30000,timeout:20000});};
+  $('placeSearch').onkeydown=e=>{if(e.key==='Enter'){e.preventDefault();$('searchPlace').click();}};
+  $('searchPlace').onclick=async()=>{if(searchJob)return;if(!navigator.onLine){$('placeStatus').textContent='地名搜尋需要網絡連線。';return;}let url;try{url=placeSearchURL($('placeSearch').value);}catch(e){$('placeStatus').textContent=ctx.failure(e);return;}const cacheKey='place:'+url.searchParams.get('q').toLocaleLowerCase(),cached=readSearchCache(cacheKey);if(cached){renderSearch(cached);return;}const wait=1000-(Date.now()-lastSearch);if(wait>0)await new Promise(r=>setTimeout(r,wait));const controller=new AbortController(),timeout=setTimeout(()=>controller.abort(),12000);searchJob=controller;lastSearch=Date.now();$('searchPlace').disabled=true;$('placeStatus').textContent='正在搜尋地名…';try{const response=await fetch(url,{credentials:'omit',signal:controller.signal,headers:{Accept:'application/json'}});if(!response.ok)throw Error('搜尋服務回應 '+response.status);const results=parsePlaceResults(await response.json());writeSearchCache(cacheKey,results);renderSearch(results);}catch(e){$('placeStatus').textContent=e.name==='AbortError'?'搜尋逾時，請稍後重試。':'搜尋失敗：'+ctx.failure(e);}finally{clearTimeout(timeout);searchJob=null;$('searchPlace').disabled=false;}};
+  function renderSearch(results){$('searchResults').replaceChildren();$('placeStatus').textContent=results.length?'請選擇地點：':'找不到地點，請加入城市、州或國家名稱再試。';for(const r of results){const b=button(r.name,()=>choose(r.point,r.name.split(',')[0],20));b.className='place-result';$('searchResults').append(b);}}
+  function readSearchCache(key){try{const cache=JSON.parse(localStorage.getItem('trail-pocket-place-search')||'{}'),item=cache[key];return item&&Date.now()-item.saved<2592000000?parsePlaceResults(item.results.map(x=>({display_name:x.name,lon:x.point[0],lat:x.point[1]}))):null;}catch{return null;}}
+  function writeSearchCache(key,results){try{const cache=JSON.parse(localStorage.getItem('trail-pocket-place-search')||'{}');cache[key]={saved:Date.now(),results};for(const k of Object.keys(cache).sort((a,b)=>cache[b].saved-cache[a].saved).slice(20))delete cache[k];localStorage.setItem('trail-pocket-place-search',JSON.stringify(cache));}catch{}}
   map.online=new OnlineMap(()=>map.draw(),s=>{tileState=s;status();});
   map.onViewChange=()=>{updateSelection();clearTimeout(timer);timer=setTimeout(()=>loadVisible().catch(e=>ctx.toast(ctx.failure(e))),250);};
   function status(){
@@ -43,13 +50,13 @@ export function setupExplore(ctx){
     try{const size=validateArea(b);$('areaSize').textContent=`框內 ${size.toFixed(2)} km² · ${b.south.toFixed(4)}, ${b.west.toFixed(4)} 至 ${b.north.toFixed(4)}, ${b.east.toFixed(4)}`;}catch(e){valid=false;$('areaSize').textContent=ctx.failure(e);}
     $('saveArea').disabled=!valid||Boolean(job)||!navigator.onLine;
   }
-  function startSelection(){
+  function startSelection(suggestedName=''){
     if(job){ctx.toast('請先等目前區域下載完成，或取消下載。');return;}if(!ctx.isReady()){ctx.toast('本機儲存未就緒。');return;}if(ctx.isEditing()){ctx.toast('請先完成自訂路線編輯。');return;}
     ctx.pauseFollow();ctx.nav('map');map.resize();selecting=true;lockedBounds=null;
     if(areaKm2(map.viewBounds(.15))>150)map.zoom(Math.sqrt(100/areaKm2(map.viewBounds(.15))));
-    $('areaControls').classList.remove('hide');$('areaFrame').classList.remove('hide');$('areaProgress').textContent='';$('areaName').value='離線區域 '+(areas.length+1);updateSelection();
+    $('areaControls').classList.remove('hide');$('areaFrame').classList.remove('hide');$('areaProgress').textContent='';$('areaName').value=typeof suggestedName==='string'&&suggestedName.trim()?suggestedName.trim():'離線區域 '+(areas.length+1);updateSelection();
   }
-  $('selectArea').onclick=$('chooseFromOffline').onclick=startSelection;
+  $('selectArea').onclick=$('chooseFromOffline').onclick=()=>startSelection();
   function cancelSelection(){if(job)return;selecting=false;lockedBounds=null;$('areaControls').classList.add('hide');$('areaFrame').classList.add('hide');}
   $('cancelArea').onclick=cancelSelection;$('abortArea').onclick=()=>job?.abort();
   async function readDownload(response,signal){
