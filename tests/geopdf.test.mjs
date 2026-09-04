@@ -5,6 +5,7 @@ import {
   selectPrimaryViewport,
   createGeoTransform,
   geoToPage,
+  pageToGeo,
   pointInFootprint,
   accuracyPixels,
 } from "../geopdf-core.mjs";
@@ -37,6 +38,9 @@ test("GeoPDF homography places Para Wirra coordinates and GPS accuracy on the pa
     page = geoToPage(transform, devils);
   assert.ok(page[0] > 0.1 && page[0] < 0.4);
   assert.ok(page[1] > 0.25 && page[1] < 0.65);
+  const restored = pageToGeo(transform, page);
+  assert.ok(Math.abs(restored[0] - devils[0]) < 1e-8);
+  assert.ok(Math.abs(restored[1] - devils[1]) < 1e-8);
   assert.equal(pointInFootprint(transform, devils), true);
   assert.equal(pointInFootprint(transform, [151.21, -33.87]), false);
   assert.ok(accuracyPixels(transform, devils, 20, 3000, 4096) > 0);
