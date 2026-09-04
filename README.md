@@ -1,4 +1,8 @@
-# Trail Pocket PWA v3.1.0
+# Trail Pocket PWA v3.1.1
+
+## v3.1.1 Responsive navigation correction
+
+- Keep the floating glass navigation on phones while preserving the full-width desktop bar.
 
 ## v3.1.0 Mobile activity UI
 
