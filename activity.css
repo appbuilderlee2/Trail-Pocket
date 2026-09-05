@@ -60,7 +60,7 @@
   .activity-panel.has-activity:not(.is-expanded) .activity-stats strong { font-size:clamp(25px,8vw,34px); }
   .activity-panel.has-activity:not(.is-expanded) .activity-stats span { margin-top:3px;font-size:9px; }
   #activityProfile { min-height:112px;padding:8px 0 0; }
-  .activity-panel.is-expanded { max-height:min(62dvh,660px);overflow-y:auto;overscroll-behavior:contain;scrollbar-width:none; }
+  .activity-panel.is-expanded { max-height:min(58dvh,620px);overflow-y:auto;overscroll-behavior:contain;scrollbar-width:none; }
   .activity-panel.is-expanded::-webkit-scrollbar { display:none; }
   .activity-actions { position:sticky;bottom:-17px;z-index:3;margin:18px -18px -16px;padding:12px 18px calc(12px + env(safe-area-inset-bottom));background:rgba(255,255,255,.96);backdrop-filter:blur(14px); }
   .activity-gps-drawer .gps-bar { display:flex!important;margin:0;padding:12px 0; }
