@@ -97,7 +97,7 @@ function nav(name, tab = name === "routes" ? "saved" : name === "map" ? "explore
   }
   currentView = name;
   currentTab = tab;
-  for (const n of ["routes", "map", "offline", "help"])
+  for (const n of ["routes", "map", "offline", "settings"])
     $(n + "View").classList.toggle("hide", n !== name);
   document
     .querySelectorAll("nav button")
@@ -108,7 +108,7 @@ function nav(name, tab = name === "routes" ? "saved" : name === "map" ? "explore
       mapBadge();
     });
   }
-  if (name === "offline") storageInfo();
+  if (name === "offline" || name === "settings") storageInfo();
   explore.viewChanged();
   window.scrollTo({ top: 0 });
 }
@@ -922,8 +922,8 @@ async function setupOffline() {
 }
 for (const b of document.querySelectorAll("nav button"))
   b.onclick = () => {
+    if (b.dataset.tab === "explore") activity.minimizePanel();
     nav(b.dataset.view, b.dataset.tab);
-    if (b.dataset.action === "activity") activity.openPanel();
   };
 $("import").onclick = $("firstImport").onclick = () => $("files").click();
 $("files").onchange = async (e) => {
@@ -1042,6 +1042,7 @@ const activity = setupActivity({
     if (watch === null) gps();
   },
   stopGPS,
+  openSettings: () => nav("settings"),
   toast,
   failure,
 });
@@ -1087,6 +1088,11 @@ const geoPdf = setupGeoPdf({
   },
   onChange: (change) => explore.geoPdfChanged(change),
 });
+
+$("settingsMapSource").onclick = () => $("mapSourceButton").click();
+$("settingsLayers").onclick = () => $("layersDialog").showModal();
+$("settingsAlerts").onclick = () => $("alertsDialog").showModal();
+$("settingsActivityHistory").onclick = () => $("activityHistory").click();
 async function boot() {
   $("audit").onclick = offlineAudit;
   network();
