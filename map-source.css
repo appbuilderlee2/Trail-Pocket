@@ -356,6 +356,30 @@
     max-height: 142px;
   }
 
+  #mapView .activity-panel:not(.is-expanded):not(.has-activity) {
+    right: auto;
+    bottom: calc(66px + env(safe-area-inset-bottom));
+    left: 50%;
+    width: min(190px, calc(100% - 32px));
+    max-height: 50px;
+    padding: 0;
+    transform: translateX(-50%);
+    border: 0;
+    border-radius: 18px;
+    background: transparent;
+    box-shadow: none;
+  }
+
+  #mapView .activity-panel:not(.is-expanded):not(.has-activity) .activity-sheet-toggle {
+    display: none;
+  }
+
+  #mapView .activity-panel:not(.is-expanded):not(.has-activity) #startActivity {
+    min-height: 50px;
+    margin: 0;
+    box-shadow: 0 7px 24px rgba(16,39,30,.2);
+  }
+
   #mapView .activity-panel.has-activity:not(.is-expanded) {
     right: 12px;
     bottom: calc(10px + env(safe-area-inset-bottom));
