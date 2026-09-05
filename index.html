@@ -23,7 +23,7 @@
     <header>
       <div><b>TRAIL POCKET</b><small>帶住路線，離線出發</small></div>
       <div class="header-status">
-        <span class="version">v3.1.3</span
+        <span class="version">v3.2.0</span
         ><span id="network" class="chip">檢查連線</span>
       </div>
     </header>
@@ -97,21 +97,6 @@
             >
           </div>
         </div>
-        <div class="gps-bar">
-          <button id="gps" class="primary">◎ 開始定位</button>
-          <div id="gpsStatus" role="status">
-            GPS
-            位置只在裝置處理；在線底圖會向地圖服務請求畫面附近圖磚。熄屏後可能停止更新。
-          </div>
-        </div>
-        <div class="emergency-card">
-          <div>
-            <small>緊急位置（只在本機顯示）</small
-            ><strong id="emergencyCoords">等待 GPS 定位</strong
-            ><span id="emergencyMeta">不會自動聯絡救援服務</span>
-          </div>
-          <button id="copyPosition" disabled>複製座標</button>
-        </div>
       </section>
       <section id="offlineView" class="view hide">
         <div class="heading">
@@ -119,25 +104,6 @@
             <div class="eyebrow">READY BEFORE YOU GO</div>
             <h1>離線下載</h1>
             <p>下載 OSM 範圍，或匯入官方 GeoPDF。</p>
-          </div>
-        </div>
-        <div class="storage-card">
-          <div>
-            <span id="shellIcon">○</span
-            ><strong id="shellStatus">檢查 App 離線狀態…</strong
-            ><small id="storageInfo"></small>
-          </div>
-          <div class="storage-actions">
-            <button id="audit" class="primary">離線自檢</button
-            ><button id="persist">保護本機儲存</button
-            ><button id="backupAll">備份全部資料</button
-            ><button id="restoreAll">還原備份</button
-            ><input
-              id="backupFile"
-              type="file"
-              accept=".json,.trailpocket,application/json"
-              hidden
-            />
           </div>
         </div>
         <div id="downloadList" class="download-list"></div>
@@ -154,9 +120,50 @@
           Overpass 及開放高程服務，GPX／KML 本身留喺手機。
         </p>
       </section>
-      <section id="helpView" class="view hide">
-        <div class="eyebrow">TRAIL POCKET · V3.1.3</div>
-        <h1>使用方法</h1>
+      <section id="settingsView" class="view hide">
+        <div class="eyebrow">TRAIL POCKET · V3.2.0</div>
+        <h1>設定</h1>
+        <p class="settings-intro">定位、地圖、安全提醒、離線檢查及使用說明集中在這裏。</p>
+
+        <section class="settings-card">
+          <div class="settings-card-head"><div><h2>GPS 與位置</h2><p>在這裏開啟定位，地圖及活動會共用同一個 GPS。</p></div></div>
+          <div class="gps-bar">
+            <button id="gps" class="primary">◎ 開始定位</button>
+            <div id="gpsStatus" role="status">GPS 位置只在裝置處理；在線底圖會向地圖服務請求畫面附近圖磚。熄屏後可能停止更新。</div>
+          </div>
+          <div class="emergency-card">
+            <div><small>緊急位置（只在本機顯示）</small><strong id="emergencyCoords">等待 GPS 定位</strong><span id="emergencyMeta">不會自動聯絡救援服務</span></div>
+            <button id="copyPosition" disabled>複製座標</button>
+          </div>
+        </section>
+
+        <section class="settings-card">
+          <h2>地圖與導航</h2>
+          <div class="settings-list">
+            <button id="settingsMapSource"><span>▱</span><b>地圖來源及 GeoPDF</b><small>線上、離線優先、GeoPDF 重疊及透明度</small><i>›</i></button>
+            <button id="settingsLayers"><span>▧</span><b>離線地圖圖層</b><small>道路、建築物、設施、地名、等高線及坡度</small><i>›</i></button>
+            <button id="settingsAlerts"><span>♧</span><b>偏離路線提醒</b><small>提醒距離、聲音及前景監察</small><i>›</i></button>
+          </div>
+        </section>
+
+        <section class="settings-card">
+          <h2>活動</h2>
+          <label class="settings-switch"><span><b>活動時保持螢幕亮著</b><small>減少前景 GPS 被熄屏中斷，但會增加耗電。</small></span><input id="keepAwake" type="checkbox" checked></label>
+          <button id="settingsActivityHistory" class="settings-wide-button">查看活動紀錄</button>
+        </section>
+
+        <section class="settings-card settings-storage">
+          <h2>離線與本機資料</h2>
+          <div class="storage-card">
+            <div><span id="shellIcon">○</span><strong id="shellStatus">檢查 App 離線狀態…</strong><small id="storageInfo"></small></div>
+            <div class="storage-actions">
+              <button id="audit" class="audit-button">離線自檢</button><button id="persist">保護本機儲存</button><button id="backupAll">備份全部資料</button><button id="restoreAll">還原備份</button>
+              <input id="backupFile" type="file" accept=".json,.trailpocket,application/json" hidden />
+            </div>
+          </div>
+        </section>
+
+        <h2 class="settings-guide-title">使用及安全說明</h2>
         <ol class="steps">
           <li>
             <b>匯入官方 GeoPDF</b>
@@ -230,7 +237,7 @@
       <button data-view="map" data-tab="explore" class="active"><span>⌖</span>探索</button
       ><button data-view="routes" data-tab="saved"><span>♡</span>已儲存</button
       ><button data-view="offline" data-tab="offline"><span>⇩</span>離線</button
-      ><button data-view="map" data-tab="activity" data-action="activity"><span>⌁</span>活動</button>
+      ><button data-view="settings" data-tab="settings"><span>⚙</span>設定</button>
     </nav>
     <dialog id="details">
       <h2 id="detailsTitle"></h2>
