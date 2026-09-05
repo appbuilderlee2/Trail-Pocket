@@ -1,4 +1,11 @@
-# Trail Pocket PWA v3.1.3
+# Trail Pocket PWA v3.2.0
+
+## v3.2.0 Clear navigation and settings
+
+- Replaces the duplicate Activity tab with one Settings destination.
+- GPS, map source, offline layers, deviation alerts, screen-awake preference, offline audit, backup and guidance now live in Settings.
+- Explore always minimizes the activity sheet; the idle activity control is now a compact floating Start button.
+- Mobile bottom navigation is shorter and the offline audit uses dark text on a light-green action.
 
 ## v3.1.3 Map-first activity mode
 
