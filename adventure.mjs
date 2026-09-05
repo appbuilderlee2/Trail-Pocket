@@ -13,8 +13,8 @@ export function setupAdventure(ctx){
   $('routesView').querySelector('.heading').after(Object.assign(el('div'),{className:'route-tools'}));
   document.querySelector('.route-tools').append(btn('✎ 建立自訂路線',()=>startEditor(false)),el('small','毋須訂閱 · 可儲存多條路線；受裝置容量及下載服務限制。','muted'));
   const tools=el('div',undefined,'trail-tools');
-  tools.append(btn('▧ 圖層',()=>{$('layersDialog').showModal();}),btn('☀ 天氣',openWeather),btn('⌁ 路線助手',openPlanner),btn('♧ 偏航提醒',()=>$('alertsDialog').showModal()),btn('✎ 自訂／匯出',openCustom));
-  for(const b of [...tools.children].slice(1))b.dataset.routeRequired='true';
+  tools.append(btn('☀ 天氣',openWeather),btn('⌁ 路線助手',openPlanner),btn('✎ 自訂／匯出',openCustom));
+  for(const b of tools.children)b.dataset.routeRequired='true';
   $('mapView').querySelector('.map-head').after(tools);
   $('mapView').insertAdjacentHTML('beforeend',`<div id="deviationBanner" class="deviation hide" role="alert"></div><div id="editorBar" class="editor-bar hide"><b>自訂路線 · 紫色虛線</b><p>拖動地圖，將中央十字移到目標，再按「加入中心點」。</p><label class="check"><input id="snapPaths" type="checkbox" checked> 沿已下載步道自動連線</label><div id="draftInfo" role="status"></div><div class="row"><button id="addPoint">＋ 加入中心點</button><button id="undoPoint">撤回末點</button><button id="reverseDraft">反轉方向</button><button id="saveDraft" class="primary">另存新路線</button><button id="cancelDraft">取消編輯</button></div></div>`);
   document.body.insertAdjacentHTML('beforeend',`
