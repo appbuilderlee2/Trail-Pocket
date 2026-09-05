@@ -44,12 +44,8 @@ export function setupActivity(ctx) {
     )
     .join(
       "",
-    )}</div><button id="startActivity" class="primary">▶ 開始活動</button><div id="activityBody" class="hide"><div id="activityProfile"></div><div class="activity-tools"><button id="activityDetailsShortcut"><span>⌁</span>活動詳情 <b>›</b></button><button id="activityGpsShortcut"><span>◎</span>GPS 及緊急位置 <b>›</b></button><button id="activityMinimize"><span>↙</span>縮小活動面板 <b>›</b></button></div><div class="activity-settings"><label>活動名稱<input id="activityName" maxlength="160" aria-label="活動名稱"></label><label class="keep-awake"><input id="keepAwake" type="checkbox" checked>活動進行時保持螢幕亮著（較耗電）</label><div id="activityGpsDrawer" class="activity-gps-drawer hide"></div></div><div class="activity-actions"><button id="pauseActivity" class="activity-go">暫停</button><button id="resumeActivity" class="activity-go">繼續</button><button id="finishActivity">完成</button></div></div><p id="activityStatus" role="status">開始後會要求 GPS 定位，活動只儲存在此裝置。</p><p class="fineprint">保持亮屏只在此頁可見及瀏覽器支援時生效，會增加耗電；切換 App／真正熄屏仍會自動暫停。GPS 不佳或中斷不會補畫直線；剩餘並非沿路導航。爬升為 GPS 估算。</p>`;
-  document.querySelector("#mapView .gps-bar").before(host);
-  $("activityGpsDrawer").append(
-    document.querySelector("#mapView .gps-bar"),
-    document.querySelector("#mapView .emergency-card"),
-  );
+    )}</div><button id="startActivity" class="primary">▶ 開始活動</button><div id="activityBody" class="hide"><div id="activityProfile"></div><div class="activity-tools"><button id="activityDetailsShortcut"><span>⌁</span>活動紀錄 <b>›</b></button><button id="activityGpsShortcut"><span>◎</span>GPS 及緊急位置 <b>›</b></button><button id="activityMinimize"><span>↙</span>縮小活動面板 <b>›</b></button></div><div class="activity-settings"><label>活動名稱<input id="activityName" maxlength="160" aria-label="活動名稱"></label></div><div class="activity-actions"><button id="pauseActivity" class="activity-go">暫停</button><button id="resumeActivity" class="activity-go">繼續</button><button id="finishActivity">完成</button></div></div><p id="activityStatus" role="status">開始後會要求 GPS 定位，活動只儲存在此裝置。</p><p class="fineprint">保持亮屏可在「設定」更改。切換 App／真正熄屏仍可能自動暫停。GPS 不佳或中斷不會補畫直線；剩餘並非沿路導航。爬升為 GPS 估算。</p>`;
+  document.querySelector("#mapView .map-wrap").after(host);
   const history = el("dialog");
   history.id = "activityHistoryDialog";
   history.innerHTML =
@@ -377,10 +373,7 @@ export function setupActivity(ctx) {
     render();
   };
   $("activityDetailsShortcut").onclick = () => $("activityHistory").click();
-  $("activityGpsShortcut").onclick = () => {
-    $("activityGpsDrawer").classList.toggle("hide");
-    if (!$("activityGpsDrawer").classList.contains("hide") && !active) $("gps").click();
-  };
+  $("activityGpsShortcut").onclick = () => ctx.openSettings();
   $("pauseActivity").onclick = () => suspend();
   $("resumeActivity").onclick = continueActivity;
   $("finishActivity").onclick = finish;
@@ -433,6 +426,10 @@ export function setupActivity(ctx) {
       expanded = true;
       render();
       host.scrollIntoView({ block: "end", behavior: "smooth" });
+    },
+    minimizePanel() {
+      expanded = false;
+      render();
     },
     isRecording: () => active?.status === "recording",
     onError: () => suspend("定位未能使用，活動已暫停；請確認定位權限後繼續。"),
