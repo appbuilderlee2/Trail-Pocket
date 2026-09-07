@@ -223,9 +223,8 @@ test("offline renderer makes no tile requests and retries require action", () =>
   assert.equal(requests.length, 0);
   online.setEnabled(true);
   online.draw(c, project([138, -34]), 5, 400, 400);
-  online.loadVisible();
   const count = requests.length;
-  assert.ok(count > 0);
+  assert.ok(count > 0, "the first draw starts tile requests immediately");
   online.loadVisible();
   assert.equal(requests.length, count);
   assert.ok(

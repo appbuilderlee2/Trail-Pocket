@@ -1,4 +1,11 @@
-# Trail Pocket PWA v3.7.0
+# Trail Pocket PWA v3.7.1
+
+## v3.7.1 Live map and activity distance reliability
+
+- Online map tiles start loading immediately, even while high-frequency GPS fixes redraw the map.
+- Slow tile requests fail visibly after 12 seconds and can be retried.
+- Good-quality walking fixes update after about 3 m while stationary drift and jumps remain filtered.
+- Distance below 1 km shows metre-level changes with three decimal places.
 
 ## v3.7.0 Suggested regional downloads
 

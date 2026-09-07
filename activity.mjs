@@ -218,7 +218,7 @@ export function setupActivity(ctx) {
     }
     const m = metrics(active);
     $("activityTime").textContent = clock(m.ms);
-    $("activityDistance").textContent = m.km.toFixed(2);
+    $("activityDistance").textContent = m.km < 1 ? m.km.toFixed(3) : m.km.toFixed(2);
     $("activityGain").textContent =
       m.ascent === null ? "—" : Math.round(m.ascent);
     $("activityRemaining").textContent =
