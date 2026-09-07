@@ -1,6 +1,6 @@
-# Trail Pocket PWA v3.2.1
+# Trail Pocket PWA v3.2.2
 
-## v3.2.1 Clear navigation and settings
+## v3.2.2 Clear navigation and settings
 
 - Replaces the duplicate Activity tab with one Settings destination.
 - GPS, map source, offline layers, deviation alerts, screen-awake preference, offline audit, backup and guidance now live in Settings.
