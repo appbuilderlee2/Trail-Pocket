@@ -18,12 +18,13 @@
     <link rel="stylesheet" href="./geopdf.css" />
     <link rel="stylesheet" href="./map-source.css" />
     <title>Trail Pocket · 離線行山地圖</title>
+    <link rel="stylesheet" href="./hiking-ui.css">
   </head>
   <body>
     <header>
       <div><b>TRAIL POCKET</b><small>帶住路線，離線出發</small></div>
       <div class="header-status">
-        <span class="version">v3.2.2</span
+        <span class="version">v3.3.0</span
         ><span id="network" class="chip">檢查連線</span>
       </div>
     </header>
@@ -42,6 +43,7 @@
           <button id="import" class="primary">＋ 匯入路線</button>
         </div>
         <input id="files" type="file" accept=".gpx,.kml" multiple hidden />
+        <div class="saved-controls"><input id="routeSearch" type="search" placeholder="搜尋已儲存路線" aria-label="搜尋已儲存路線"><select id="routeSort" aria-label="路線排序"><option value="name">名稱排序</option><option value="distance">距離短至長</option><option value="offline">已下載優先</option></select></div><p id="routeSearchEmpty" class="muted hide">找不到符合的路線。</p>
         <div id="routeList" class="cards"></div>
         <div id="empty" class="empty">
           <div class="empty-icon">↟</div>
@@ -63,7 +65,7 @@
           </div>
           <button id="mapOptions" class="icon" aria-label="路線資料">ⓘ</button>
         </div>
-        <div class="map-wrap">
+        <div class="map-wrap"><div id="mapPositionStatus" class="position-status">GPS 未開啟 · 方向未確認</div>
           <canvas id="map" aria-label="路線及離線底圖"></canvas>
           <div id="mapBadge" class="map-badge"></div>
           <div class="map-buttons">
@@ -121,7 +123,7 @@
         </p>
       </section>
       <section id="settingsView" class="view hide">
-        <div class="eyebrow">TRAIL POCKET · V3.2.2</div>
+        <div class="eyebrow">TRAIL POCKET · V3.3.0</div>
         <h1>設定</h1>
         <p class="settings-intro">定位、地圖、安全提醒、離線檢查及使用說明集中在這裏。</p>
 
@@ -137,6 +139,12 @@
           </div>
         </section>
 
+        <section class="settings-card">
+          <h2>方向與指南針</h2>
+          <button id="compassToggle">開啟手機指南針</button>
+          <p id="compassStatus" role="status">行走時顯示 GPS 行進方向；停留時可開啟手機指南針。</p>
+          <p class="fineprint">藍色扇形只表示方向，並非推薦路線。指南針可能受磁石、車輛及電子設備影響；未有可靠資料時不顯示。地圖維持北向上，GeoPDF 按原圖方向校正。</p>
+        </section>
         <section class="settings-card">
           <h2>地圖與導航</h2>
           <div class="settings-list">
