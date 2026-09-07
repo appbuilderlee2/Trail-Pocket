@@ -46,15 +46,17 @@ export function setupActivity(ctx) {
       "",
     )}</div><button id="startActivity" class="primary">▶ 開始活動</button><div id="activityBody" class="hide"><div id="activityProfile"></div><div class="activity-tools"><button id="activityDetailsShortcut"><span>⌁</span>活動紀錄 <b>›</b></button><button id="activityGpsShortcut"><span>◎</span>GPS 及緊急位置 <b>›</b></button><button id="activityMinimize"><span>↙</span>縮小活動面板 <b>›</b></button></div><div class="activity-settings"><label>活動名稱<input id="activityName" maxlength="160" aria-label="活動名稱"></label></div><div class="activity-actions"><button id="pauseActivity" class="activity-go">暫停</button><button id="resumeActivity" class="activity-go">繼續</button><button id="finishActivity">完成</button></div></div><p id="activityStatus" role="status">開始後會要求 GPS 定位，活動只儲存在此裝置。</p><p class="fineprint">保持亮屏可在「設定」更改。切換 App／真正熄屏仍可能自動暫停。GPS 不佳或中斷不會補畫直線；剩餘並非沿路導航。爬升為 GPS 估算。</p>`;
   document.querySelector("#mapView .map-wrap").after(host);
-  const history = el("dialog");
-  history.id = "activityHistoryDialog";
+  const history = el("section");
+  history.className = "view hide";
+  history.id = "historyView";
   history.innerHTML =
     '<h2>活動紀錄</h2><div id="activityHistoryList"></div><button id="closeActivityHistory">關閉</button>';
   const detail = el("dialog");
   detail.id = "activityDetailDialog";
   detail.innerHTML =
     '<h2 id="savedActivityName"></h2><div id="savedActivityDetails"></div><div id="savedActivityProfile"></div><div class="row"><button id="exportActivity">匯出活動 GPX</button><button id="closeActivityDetail">關閉</button></div>';
-  document.body.append(history, detail);
+  document.querySelector("main").append(history);
+  document.body.append(detail);
   const entry = el("button", "活動紀錄");
   document.querySelector("#routesView .heading").append(entry);
   entry.onclick = showHistory;
@@ -340,7 +342,7 @@ export function setupActivity(ctx) {
         card.append(b);
         list.append(card);
       }
-      history.showModal();
+      ctx.nav("history");
     } catch (e) {
       ctx.toast(ctx.failure(e));
     }
@@ -378,7 +380,7 @@ export function setupActivity(ctx) {
   $("resumeActivity").onclick = continueActivity;
   $("finishActivity").onclick = finish;
   $("activityHistory").onclick = showHistory;
-  $("closeActivityHistory").onclick = () => history.close();
+  $("closeActivityHistory").onclick = () => ctx.nav("routes");
   $("closeActivityDetail").onclick = () => detail.close();
   $("activityName").onchange = () => {
     if (active) {
