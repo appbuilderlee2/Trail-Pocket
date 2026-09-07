@@ -674,14 +674,16 @@ function emergencyStatus() {
   copy.dataset.position =
     lat + ", " + lon + `（精度 ±${Math.round(fix.coords.accuracy)} m）`;
 }
-let compassFix = null, compassEnabled = false;
+let compassFix = null, compassEnabled = false, compassMessage = "", lastDirection = "";
 function directionStatus() {
   const heading = chooseHeading(fix, compassFix);
-  const state = !fix ? "GPS 未開啟" : Date.now() - fix.timestamp > 20000 ? "GPS 已過時" : `GPS ±${Math.round(fix.coords.accuracy)}m`;
+  const key = heading ? `${heading.source}:${heading.bearing}` : "none";
+  if (key !== lastDirection) { lastDirection = key; map.draw(); }
+  const state = !fix ? (watch === null ? "GPS 未開啟" : "等待 GPS") : Date.now() - fix.timestamp > 20000 ? "GPS 已過時" : `GPS ±${Math.round(fix.coords.accuracy)}m`;
   const label = heading ? `${heading.source === "course" ? "行進" : "朝向"} ${Math.round(heading.bearing)}°` : "方向未確認";
   $("mapPositionStatus").textContent = state + " · " + label;
   $("mapPositionStatus").classList.toggle("position-warning", !!fix && (Date.now() - fix.timestamp > 20000 || fix.coords.accuracy > 50));
-  $("compassStatus").textContent = heading ? label + (heading.source === "compass" ? "（手機指南針，可能受磁場影響）" : "（GPS 行進方向，並非手機朝向）") : compassEnabled ? "等待可靠方向；請平放手機，遠離磁石。訊號過時會隱藏扇形。" : "行走時可顯示 GPS 行進方向；開啟指南針後可在停留時顯示手機朝向。";
+  $("compassStatus").textContent = compassMessage || (heading ? label + (heading.source === "compass" ? "（手機指南針，可能受磁場影響）" : "（GPS 行進方向，並非手機朝向）") : compassEnabled ? "等待可靠方向；請平放手機，遠離磁石。訊號過時會隱藏扇形。" : "行走時可顯示 GPS 行進方向；開啟指南針後可在停留時顯示手機朝向。");
 }
 function orientationChanged(event) {
   if (!compassEnabled || document.hidden) return;
@@ -690,7 +692,7 @@ function orientationChanged(event) {
   directionStatus();
 }
 function stopCompass() {
-  compassEnabled = false; compassFix = null;
+  compassEnabled = false; compassFix = null; compassMessage = "";
   window.removeEventListener("deviceorientation", orientationChanged);
   window.removeEventListener("deviceorientationabsolute", orientationChanged);
   map.setCompass(null);
@@ -699,18 +701,19 @@ function stopCompass() {
 }
 async function toggleCompass() {
   if (compassEnabled) { stopCompass(); return; }
+  compassMessage = "";
   const sensor = window.DeviceOrientationEvent;
-  if (!sensor) { $("compassStatus").textContent = "此瀏覽器未提供指南針；可靠 GPS 行進方向仍可使用。"; return; }
+  if (!sensor) { compassMessage = "此瀏覽器未提供指南針；可靠 GPS 行進方向仍可使用。"; directionStatus(); return; }
   try {
     if (typeof sensor.requestPermission === "function" && await sensor.requestPermission() !== "granted") {
-      $("compassStatus").textContent = "未獲動作與方向權限；仍可使用 GPS 行進方向。"; return;
+      compassMessage = "未獲動作與方向權限；仍可使用 GPS 行進方向。"; directionStatus(); return;
     }
     compassEnabled = true;
     window.addEventListener("deviceorientation", orientationChanged);
     window.addEventListener("deviceorientationabsolute", orientationChanged);
     $("compassToggle").textContent = "停止手機指南針";
     directionStatus();
-  } catch { $("compassStatus").textContent = "無法開啟指南針，請檢查瀏覽器權限。"; }
+  } catch { compassMessage = "無法開啟指南針，請檢查瀏覽器權限。"; directionStatus(); }
 }
 function gpsStatus() {
   directionStatus();
