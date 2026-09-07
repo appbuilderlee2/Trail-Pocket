@@ -1,3 +1,4 @@
+import { compassReading, chooseHeading } from "./heading.mjs";
 import {
   parseRoute,
   routeLength,
@@ -170,7 +171,11 @@ function mini(route) {
 function renderRoutes() {
   $("routeList").replaceChildren();
   $("empty").classList.toggle("hide", routes.length > 0);
-  for (const r of routes) {
+  const query = $("routeSearch").value.trim().toLocaleLowerCase();
+  const matching = routes.filter(r => r.name.toLocaleLowerCase().includes(query));
+  matching.sort((a,b) => $("routeSort").value === "distance" ? a.length-b.length : $("routeSort").value === "offline" ? Number(metas.has(b.id))-Number(metas.has(a.id)) || a.name.localeCompare(b.name) : a.name.localeCompare(b.name));
+  $("routeSearchEmpty").classList.toggle("hide", !routes.length || matching.length > 0);
+  for (const r of matching) {
     const card = node("article", "route-card");
     card.append(mini(r));
     const body = node("div", "route-body");
@@ -669,7 +674,46 @@ function emergencyStatus() {
   copy.dataset.position =
     lat + ", " + lon + `（精度 ±${Math.round(fix.coords.accuracy)} m）`;
 }
+let compassFix = null, compassEnabled = false;
+function directionStatus() {
+  const heading = chooseHeading(fix, compassFix);
+  const state = !fix ? "GPS 未開啟" : Date.now() - fix.timestamp > 20000 ? "GPS 已過時" : `GPS ±${Math.round(fix.coords.accuracy)}m`;
+  const label = heading ? `${heading.source === "course" ? "行進" : "朝向"} ${Math.round(heading.bearing)}°` : "方向未確認";
+  $("mapPositionStatus").textContent = state + " · " + label;
+  $("mapPositionStatus").classList.toggle("position-warning", !!fix && (Date.now() - fix.timestamp > 20000 || fix.coords.accuracy > 50));
+  $("compassStatus").textContent = heading ? label + (heading.source === "compass" ? "（手機指南針，可能受磁場影響）" : "（GPS 行進方向，並非手機朝向）") : compassEnabled ? "等待可靠方向；請平放手機，遠離磁石。訊號過時會隱藏扇形。" : "行走時可顯示 GPS 行進方向；開啟指南針後可在停留時顯示手機朝向。";
+}
+function orientationChanged(event) {
+  if (!compassEnabled || document.hidden) return;
+  compassFix = compassReading(event, screen.orientation?.angle ?? window.orientation ?? 0);
+  map.setCompass(compassFix);
+  directionStatus();
+}
+function stopCompass() {
+  compassEnabled = false; compassFix = null;
+  window.removeEventListener("deviceorientation", orientationChanged);
+  window.removeEventListener("deviceorientationabsolute", orientationChanged);
+  map.setCompass(null);
+  $("compassToggle").textContent = "開啟手機指南針";
+  directionStatus();
+}
+async function toggleCompass() {
+  if (compassEnabled) { stopCompass(); return; }
+  const sensor = window.DeviceOrientationEvent;
+  if (!sensor) { $("compassStatus").textContent = "此瀏覽器未提供指南針；可靠 GPS 行進方向仍可使用。"; return; }
+  try {
+    if (typeof sensor.requestPermission === "function" && await sensor.requestPermission() !== "granted") {
+      $("compassStatus").textContent = "未獲動作與方向權限；仍可使用 GPS 行進方向。"; return;
+    }
+    compassEnabled = true;
+    window.addEventListener("deviceorientation", orientationChanged);
+    window.addEventListener("deviceorientationabsolute", orientationChanged);
+    $("compassToggle").textContent = "停止手機指南針";
+    directionStatus();
+  } catch { $("compassStatus").textContent = "無法開啟指南針，請檢查瀏覽器權限。"; }
+}
 function gpsStatus() {
+  directionStatus();
   if (!fix) {
     emergencyStatus();
     return;
@@ -697,6 +741,7 @@ function stopGPS() {
   if (watch !== null) navigator.geolocation.clearWatch(watch);
   watch = null;
   fix = null;
+  stopCompass();
   map.setFix(null);
   adventure.onFix(null);
   emergencyStatus();
@@ -949,7 +994,12 @@ $("follow").onclick = () => {
   $("follow").classList.add("selected");
   gpsStatus();
 };
+$("routeSearch").oninput = renderRoutes;
+$("routeSort").onchange = renderRoutes;
 $("gps").onclick = gps;
+$("compassToggle").onclick = toggleCompass;
+setInterval(() => { if (!document.hidden) { directionStatus(); if (compassFix && Date.now() - compassFix.timestamp > 3000) { compassFix = null; map.setCompass(null); } } }, 1000);
+document.addEventListener("visibilitychange", () => { compassFix = null; map.setCompass(null); });
 $("copyPosition").onclick = async () => {
   const value = $("copyPosition").dataset.position;
   if (!value) return;
