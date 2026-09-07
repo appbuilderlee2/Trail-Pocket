@@ -1,7 +1,7 @@
 export const BACKUP_FORMAT = "trail-pocket-backup",
   BACKUP_VERSION = 1,
   MAX_BACKUP_BYTES = 300 * 1024 * 1024;
-const stores = ["routes", "maps", "areas", "activities", "settings", "geopdfs"];
+const stores = ["routes", "maps", "areas", "activities", "settings", "geopdfs", "markers"];
 const jsonSize = (value) => new Blob([JSON.stringify(value)]).size;
 function records(value, name) {
   if (!Array.isArray(value)) throw Error(`備份的 ${name} 格式不正確。`);
@@ -26,7 +26,7 @@ export function createBackup(data, now = Date.now()) {
     format: BACKUP_FORMAT,
     version: BACKUP_VERSION,
     created: new Date(now).toISOString(),
-    appVersion: "3.4.1",
+    appVersion: "3.5.0",
     data: clean,
   };
   if (jsonSize(backup) > MAX_BACKUP_BYTES)

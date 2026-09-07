@@ -12,12 +12,13 @@ const paths = {
 const icon = name => `<svg viewBox="0 0 24 24" aria-hidden="true" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round">${paths[name]}</svg>`;
 export function setupUnifiedUI(ctx) {
  const heading=document.createElement('section');heading.id='libraryHeader';heading.className='library-header hide';
- heading.innerHTML='<h1>我的</h1><div class="library-tabs" role="tablist" aria-label="我的分類"><button id="myRoutes" role="tab" aria-selected="true">路線</button><button id="myMaps" role="tab" aria-selected="false">離線地圖</button><button id="myActivities" role="tab" aria-selected="false">活動紀錄</button></div>';
+ heading.innerHTML='<h1>我的</h1><div class="library-tabs" role="tablist" aria-label="我的分類"><button id="myRoutes" role="tab" aria-selected="true">路線</button><button id="myMaps" role="tab" aria-selected="false">離線地圖</button><button id="myActivities" role="tab" aria-selected="false">活動</button><button id="myMarkers" role="tab" aria-selected="false">標記</button></div>';
  document.querySelector('main').prepend(heading);
  $('myRoutes').onclick=()=>ctx.nav('routes');$('myMaps').onclick=()=>ctx.nav('offline');$('myActivities').onclick=()=> $('activityHistory').click();
+ $('myMarkers').onclick=()=>ctx.nav('markers');
  window.addEventListener('trail:view',({detail:name})=>{
-  heading.classList.toggle('hide',!['routes','offline','history'].includes(name));
-  for(const [id,view] of [['myRoutes','routes'],['myMaps','offline'],['myActivities','history']]) $(id).setAttribute('aria-selected',String(view===name));
+  heading.classList.toggle('hide',!['routes','offline','history','markers'].includes(name));
+  for(const [id,view] of [['myRoutes','routes'],['myMaps','offline'],['myActivities','history'],['myMarkers','markers']]) $(id).setAttribute('aria-selected',String(view===name));
   $('mapToolMenu')?.removeAttribute('open');
  });
  for(const [tab,svg,label] of [['explore','map','地圖'],['saved','saved','我的'],['settings','settings','設定']]){
@@ -27,6 +28,7 @@ export function setupUnifiedUI(ctx) {
  const menu=document.createElement('details');menu.id='mapToolMenu';menu.className='map-tool-menu';menu.innerHTML=`<summary aria-label="更多工具">${icon('more')}</summary><div class="map-tool-items"></div>`;
  document.querySelector('.map-wrap').append(menu);const items=menu.querySelector('div');
  for(const id of ['jumpPlace','selectArea']){const button=$(id);button.textContent=id==='jumpPlace'?'搜尋地點':'下載地圖範圍';items.append(button);}
+ const quickMarker=document.createElement('button');quickMarker.textContent='標記目前位置';quickMarker.onclick=()=>{$('addMarker').click();menu.open=false;};items.append(quickMarker);
  const tools=document.querySelector('.trail-tools');if(tools)items.append(tools);
  items.addEventListener('click',e=>{if(e.target.closest('button'))menu.open=false;});
  const extras=document.createElement('details');extras.className='library-actions';extras.innerHTML='<summary>新增及匯入</summary><div></div>';

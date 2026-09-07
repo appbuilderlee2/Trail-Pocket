@@ -28,6 +28,14 @@ import {
   MAX_BACKUP_BYTES,
 } from "./backup.mjs";
 import { buildOfflinePackage } from "./offline-package.mjs";
+import {
+  createIntegrityManifest,
+  verifyOfflineRecord,
+  coverageStatus,
+  routeCoverage,
+  gpsQuality,
+} from "./reliability-core.mjs";
+import { setupMarkers } from "./markers.mjs";
 const $ = (id) => document.getElementById(id),
   BASE = new URL("./", import.meta.url),
   jobs = new Map(),
@@ -67,8 +75,10 @@ function formatSize(n) {
     : Math.max(1, Math.round(n / 1024)) + " KB";
 }
 function mapDetail(m) {
+  if (m?.packageVersion >= 3 && m.integrity)
+    return `已驗證完整圖層、${m.stats?.searchEntries || 0} 個搜尋項目及步道路網`;
   if (m?.packageVersion >= 2)
-    return `完整圖層、${m.stats?.searchEntries || 0} 個搜尋項目及步道路網`;
+    return "舊版完整包；請重新下載以加入儲存完整性核對";
   if (m?.terrain) return "舊版建築物、地標及等高線；重載可加入搜尋及步道路網";
   if (m?.detailLevel === "建築物及地標") return "建築物及地標；無等高線";
   return "舊版基本地形；請重新下載";
@@ -98,8 +108,8 @@ function nav(name, tab = name === "routes" ? "saved" : name === "map" ? "explore
     return;
   }
   currentView = name;
-  currentTab = ["routes", "offline", "history"].includes(name) ? "saved" : tab;
-  for (const n of ["routes", "map", "offline", "history", "settings"])
+  currentTab = ["routes", "offline", "history", "markers"].includes(name) ? "saved" : tab;
+  for (const n of ["routes", "map", "offline", "history", "markers", "settings"])
     $(n + "View").classList.toggle("hide", n !== name);
   document
     .querySelectorAll("nav button")
@@ -329,9 +339,10 @@ function mapBadge() {
       " 點"
     : "毋須路線 · 自由瀏覽及框選離線地區";
   $("mapBadge").classList.toggle("hide", !selected);
+  const coverage = selected ? routeCoverage(selected.segments, explore?.coverageRecords?.() || []) : null;
   $("mapBadge").textContent = selected
-    ? "實線：目前路線 · 路線底圖" +
-      (metas.has(selected.id) ? "已下載" : "未下載")
+    ? "實線：目前路線 · " +
+      (coverage?.covered ? "全程在已下載範圍" : metas.has(selected.id) ? "部分軌跡可能超出離線範圍" : "路線底圖未下載")
     : " ";
   for (const b of document.querySelectorAll("[data-route-required]"))
     b.disabled = !selected;
@@ -418,6 +429,7 @@ async function demo() {
       detailLevel: "完整離線圖層、搜尋及步道路網",
       downloaded: new Date("2026-09-03T00:00:00Z").getTime(),
     };
+    basemap.integrity = createIntegrityManifest(basemap);
     basemap.size = new Blob([JSON.stringify(basemap)]).size;
     await store.importDemo(route, basemap);
     await refresh();
@@ -487,12 +499,14 @@ async function download(route) {
         detailLevel: "完整離線圖層、搜尋及步道路網",
         downloaded: Date.now(),
       };
+    record.integrity = createIntegrityManifest(record);
     record.size = new Blob([JSON.stringify(record)]).size;
     if (record.size > PACKAGE_LIMIT_BYTES)
       throw Error("完整離線地圖連搜尋及步道路網超過 128 MB，請縮小範圍。");
     await assertStorageRoom(record.size);
     setDownloadStatus(route.id, "下載完成，正在安全寫入裝置…");
-    await store.put("maps", record);
+    setDownloadStatus(route.id, "正在讀回並核對完整性…");
+    await store.putVerified("maps", record, (saved) => verifyOfflineRecord(saved).ok);
     messages.delete(route.id);
     if (selected?.id === route.id) {
       selectedMap = record;
@@ -689,10 +703,13 @@ function directionStatus() {
   const heading = chooseHeading(fix, compassFix);
   const key = heading ? `${heading.source}:${heading.bearing}` : "none";
   if (key !== lastDirection) { lastDirection = key; map.draw(); }
-  const state = !fix ? (watch === null ? "GPS 未開啟" : "等待 GPS") : Date.now() - fix.timestamp > 20000 ? "GPS 已過時" : `GPS ±${Math.round(fix.coords.accuracy)}m`;
+  const quality = gpsQuality(fix, watch !== null),
+    coverage = fix ? coverageStatus([fix.coords.longitude, fix.coords.latitude], explore?.coverageRecords?.() || []) : null,
+    range = coverage?.state === "edge" ? ` · 離線邊界 ${coverage.distance}m` : coverage?.state === "outside" && explore?.usesOffline?.() ? " · 已離開下載範圍" : "",
+    state = quality.label + range;
   const label = heading ? `${heading.source === "course" ? "行進" : "朝向"} ${Math.round(heading.bearing)}°` : "方向未確認";
   $("mapPositionStatus").textContent = state + " · " + label;
-  $("mapPositionStatus").classList.toggle("position-warning", !!fix && (Date.now() - fix.timestamp > 20000 || fix.coords.accuracy > 50));
+  $("mapPositionStatus").classList.toggle("position-warning", ["stale","poor"].includes(quality.state) || coverage?.state === "outside" || coverage?.state === "edge");
   $("compassStatus").textContent = compassMessage || (heading ? label + (heading.source === "compass" ? "（手機指南針，可能受磁場影響）" : "（GPS 行進方向，並非手機朝向）") : compassEnabled ? "等待可靠方向；請平放手機，遠離磁石。訊號過時會隱藏扇形。" : "行走時可顯示 GPS 行進方向；開啟指南針後可在停留時顯示手機朝向。");
 }
 function orientationChanged(event) {
@@ -727,25 +744,32 @@ async function toggleCompass() {
 }
 function gpsStatus() {
   directionStatus();
+  const quality = gpsQuality(fix, watch !== null);
+  $("gpsStatus").dataset.quality = quality.state;
   if (!fix) {
+    $("gpsStatus").textContent = quality.label;
     emergencyStatus();
     return;
   }
   const age = Math.max(0, Math.round((Date.now() - fix.timestamp) / 1000));
-  $("gpsStatus").textContent =
-    age > 20
-      ? "舊位置：" + age + " 秒前，未能確認目前位置。"
-      : `精度 ±${Math.round(fix.coords.accuracy)} m` +
+  const point = [fix.coords.longitude, fix.coords.latitude],
+    coverage = coverageStatus(point, explore?.coverageRecords?.() || []);
+  $("gpsStatus").textContent = quality.label +
+    (age <= 20
+      ?
         (selected
           ? " · 距軌跡約 " +
             Math.round(
-              nearestDistance(
-                [fix.coords.longitude, fix.coords.latitude],
-                selected.segments,
-              ),
+              nearestDistance(point, selected.segments),
             ) +
             " m"
-          : "");
+          : "") +
+        (coverage.state === "edge"
+          ? ` · 距離線地圖邊界約 ${coverage.distance} m`
+          : coverage.state === "outside" && explore?.usesOffline?.()
+            ? " · 已離開下載範圍"
+            : "")
+      : "");
   emergencyStatus();
   map.setFix(fix, follow && age <= 20);
   adventure.onFix(fix);
@@ -836,10 +860,11 @@ async function offlineAudit() {
           !record.bounds ||
           !record.terrain ||
           !Array.isArray(record.contours) ||
-          record.packageVersion < 2 ||
+          record.packageVersion < 3 ||
           !Array.isArray(record.searchIndex) ||
           !Array.isArray(record.routingGraph?.nodes) ||
-          !Array.isArray(record.routingGraph?.edges)
+          !Array.isArray(record.routingGraph?.edges) ||
+          !verifyOfflineRecord(record).ok
         )
           throw Error();
       } catch {
@@ -905,7 +930,7 @@ async function restoreBackup(file) {
   try {
     const backup = validateBackup(JSON.parse(await file.text())),
       c = backupCounts(backup),
-      summary = `${c.routes} 條路線、${c.maps + c.areas} 張離線底圖、${c.geopdfs} 張 GeoPDF、${c.activities} 項活動。現有同 ID 資料會更新，其他資料保留。`;
+      summary = `${c.routes} 條路線、${c.maps + c.areas} 張離線底圖、${c.geopdfs} 張 GeoPDF、${c.activities} 項活動、${c.markers} 個標記。現有同 ID 資料會更新，其他資料保留。`;
     if (!(await ask("還原 Trail Pocket 備份？", summary, "合併還原"))) return;
     await store.restoreAll(backup.data);
     await refresh();
@@ -1128,6 +1153,14 @@ const explore = setupExplore({
   storageInfo,
   getGeoPdf: () => geoPdf,
 });
+const markers = setupMarkers({
+  map,
+  nav,
+  getFix: () => fix,
+  isReady: () => storeOK,
+  toast,
+  failure,
+});
 const geoPdf = setupGeoPdf({
   map,
   isReady: () => storeOK,
@@ -1167,6 +1200,7 @@ async function boot() {
     await adventure.init();
     await geoPdf.init();
     await explore.init();
+    await markers.init();
     await activity.init();
   } catch (e) {
     setBanner(

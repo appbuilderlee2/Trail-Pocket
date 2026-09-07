@@ -2,7 +2,7 @@ const dbName = "trail-pocket:" + new URL("./", import.meta.url).pathname;
 let db;
 export async function openStore() {
   db = await new Promise((resolve, reject) => {
-    const r = indexedDB.open(dbName, 4);
+    const r = indexedDB.open(dbName, 5);
     r.onupgradeneeded = () => {
       for (const name of [
         "routes",
@@ -11,6 +11,7 @@ export async function openStore() {
         "areas",
         "activities",
         "geopdfs",
+        "markers",
       ])
         if (!r.result.objectStoreNames.contains(name))
           r.result.createObjectStore(name, { keyPath: "id" });
@@ -75,6 +76,19 @@ export const removeGeoPdf = (id) =>
   );
 export const put = (name, value) =>
   transaction([name], "readwrite", (t) => t.objectStore(name).put(value));
+export async function putVerified(name, value, verify) {
+  const previous = await get(name, value.id);
+  await put(name, value);
+  try {
+    const saved = await get(name, value.id);
+    if (!verify(saved)) throw Error("儲存後讀回驗證失敗。");
+    return saved;
+  } catch (error) {
+    if (previous) await put(name, previous);
+    else await transaction([name], "readwrite", (t) => t.objectStore(name).delete(value.id));
+    throw error;
+  }
+}
 export const removeMap = (id) =>
   transaction(["maps"], "readwrite", (t) => t.objectStore("maps").delete(id));
 export const removeRoute = (id) =>
@@ -113,6 +127,7 @@ export async function exportAll() {
       "activities",
       "settings",
       "geopdfs",
+      "markers",
     ],
     entries = await Promise.all(
       names.map(async (name) => [name, await getAll(name)]),
@@ -121,7 +136,7 @@ export async function exportAll() {
 }
 export const restoreAll = (data) =>
   transaction(
-    ["routes", "maps", "areas", "activities", "settings", "geopdfs"],
+    ["routes", "maps", "areas", "activities", "settings", "geopdfs", "markers"],
     "readwrite",
     (t) => {
       for (const name of [
@@ -131,6 +146,7 @@ export const restoreAll = (data) =>
         "activities",
         "settings",
         "geopdfs",
+        "markers",
       ])
         for (const value of data[name] || []) t.objectStore(name).put(value);
     },

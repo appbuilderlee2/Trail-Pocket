@@ -13,7 +13,7 @@ const data={elements:[
   {type:'way',id:12,tags:{highway:'path',access:'private'},geometry:[{lon:138,lat:-34},{lon:138.002,lat:-34.001}]}
 ]};
 
-test('offline package creates compact search and walkable routing data',()=>{const p=buildOfflinePackage(data);assert.equal(p.packageVersion,2);assert.ok(p.searchIndex.length>=3);assert.equal(searchOffline([{name:'Test area',index:p.searchIndex}],'mount')[0].kind,'山峰');assert.equal(searchOffline([{name:'Test area',index:p.searchIndex}],'toilets')[0].source,'Test area');assert.equal(p.routingGraph.nodes.length,5);assert.equal(p.routingGraph.edges.length,8);});
+test('offline package creates compact search and walkable routing data',()=>{const p=buildOfflinePackage(data);assert.equal(p.packageVersion,3);assert.ok(p.searchIndex.length>=3);assert.equal(searchOffline([{name:'Test area',index:p.searchIndex}],'mount')[0].kind,'山峰');assert.equal(searchOffline([{name:'Test area',index:p.searchIndex}],'toilets')[0].source,'Test area');assert.equal(searchOffline([{name:'Test area',index:p.searchIndex}],'廁所')[0].kind,'洗手間');assert.equal(p.routingGraph.nodes.length,5);assert.equal(p.routingGraph.edges.length,8);});
 
 test('A* follows downloaded paths and rejects locations outside the graph',()=>{const graph=buildOfflinePackage(data).routingGraph,result=routeAStar(graph,[138,-34],[138.002,-34.001]);assert.ok(result.path.length>=4);assert.ok(result.distance>200&&result.distance<400);assert.throws(()=>routeAStar(graph,[139,-35],[138.002,-34.001]),/400 m/);});
 

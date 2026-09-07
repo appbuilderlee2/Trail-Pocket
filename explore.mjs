@@ -17,6 +17,7 @@ import {
 } from "./offline-download.mjs";
 import { buildOfflinePackage } from "./offline-package.mjs";
 import { searchOffline } from "./offline-search.mjs";
+import { createIntegrityManifest, verifyOfflineRecord } from "./reliability-core.mjs";
 
 export function setupExplore(ctx) {
   const $ = (id) => document.getElementById(id),
@@ -414,7 +415,7 @@ export function setupExplore(ctx) {
     } else {
       const b = map.viewBounds(),
         near = [...areas, ...routeMaps].filter((m) => overlaps(m.bounds, b)),
-        old = near.some((m) => m.packageVersion < 2),
+        old = near.some((m) => m.packageVersion < 3 || !m.integrity),
         noContours = near.some((m) => !m.terrain);
       $("exploreStatus").textContent =
         (navigator.onLine ? "離線優先" : "目前離線") +
@@ -658,13 +659,15 @@ export function setupExplore(ctx) {
           parts: osm.parts,
           detailLevel: "完整離線圖層、搜尋及步道路網",
           downloaded: Date.now(),
-        };
+      };
+      record.integrity = createIntegrityManifest(record);
       record.size = new Blob([JSON.stringify(record)]).size;
       if (record.size > PACKAGE_LIMIT_BYTES)
         throw Error("完整離線地圖連搜尋及步道路網超過 128 MB，請縮小範圍。");
       await assertStorageRoom(record.size);
       $("areaProgress").textContent = "正在安全儲存…";
-      await store.put("areas", record);
+      $("areaProgress").textContent = "正在讀回並核對完整性…";
+      await store.putVerified("areas", record, (saved) => verifyOfflineRecord(saved).ok);
       await refresh();
       selecting = false;
       lockedBounds = null;
@@ -705,8 +708,8 @@ export function setupExplore(ctx) {
     for (const a of areas) {
       const card = el("article", undefined, "download-card"),
         detail =
-          a.packageVersion >= 2
-            ? `完整圖層 · ${a.stats?.searchEntries || 0} 搜尋項 · ${a.stats?.routingNodes || 0} 路網點 · 20 m 等高線`
+          a.packageVersion >= 3 && a.integrity
+            ? `已驗證完整圖層 · ${a.stats?.searchEntries || 0} 搜尋項 · ${a.stats?.routingNodes || 0} 路網點 · 20 m 等高線`
             : "舊版地圖；重新下載可加入搜尋及路網";
       card.append(
         el("h3", a.name),
@@ -798,5 +801,7 @@ export function setupExplore(ctx) {
     viewChanged,
     geoPdfChanged,
     isSelecting: () => selecting,
+    coverageRecords: () => [...areas, ...routeMaps],
+    usesOffline: () => effectiveMode === "offline" || mode === "geopdf",
   };
 }

@@ -166,6 +166,39 @@ export class TrailMap {
     this.activityTrack = segments;
     this.draw();
   }
+  setMarkers(markers) {
+    this.markers = markers || [];
+    this.draw();
+  }
+  fitActivityTrack() {
+    const points = (this.activityTrack || []).flat();
+    if (!points.length) return false;
+    const xs = points.map((p) => project(p)[0]), ys = points.map((p) => project(p)[1]);
+    this.center = [(Math.min(...xs) + Math.max(...xs)) / 2, (Math.min(...ys) + Math.max(...ys)) / 2];
+    this.units = Math.max(
+      (Math.max(...xs) - Math.min(...xs)) / Math.max(100, this.w - 90),
+      (Math.max(...ys) - Math.min(...ys)) / Math.max(100, this.h - 160),
+      0.8,
+    ) * 1.18;
+    this.draw();
+    return true;
+  }
+  drawMarker(c, p, item) {
+    c.save();
+    c.beginPath();
+    c.arc(p[0], p[1], 12, 0, Math.PI * 2);
+    c.fillStyle = item.type === "parking" ? "#2569b0" : item.type === "junction" ? "#b76518" : "#43564c";
+    c.fill();
+    c.strokeStyle = "white";
+    c.lineWidth = 3;
+    c.stroke();
+    c.fillStyle = "white";
+    c.font = "bold 11px sans-serif";
+    c.textAlign = "center";
+    c.textBaseline = "middle";
+    c.fillText(item.type === "parking" ? "P" : item.type === "junction" ? "Y" : "•", p[0], p[1]);
+    c.restore();
+  }
   setDraft(segments) {
     this.draft = segments;
     this.draw();
@@ -482,6 +515,9 @@ export class TrailMap {
       }
       flush();
     }
+    for (const item of this.markers || [])
+      if (pointInFootprint(this.geoPdf.transform, item.point))
+        this.drawMarker(c, this.geoScreen(item.point), item);
     let state = "waiting";
     if (this.fix) {
       const f = this.fix,
@@ -868,6 +904,8 @@ export class TrailMap {
       this.line(segment.map(project), "#fff", 7);
       this.line(segment.map(project), "#d27237", 4);
     }
+    for (const item of this.markers || [])
+      this.drawMarker(c, this.screen(project(item.point)), item);
     if (this.fix) {
       const f = this.fix,
         pt = [f.coords.longitude, f.coords.latitude],

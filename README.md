@@ -1,4 +1,11 @@
-# Trail Pocket PWA v3.4.1
+# Trail Pocket PWA v3.5.0
+
+## v3.5.0 Field reliability
+
+- Verifies each new offline package after IndexedDB storage and restores the previous copy on failure.
+- Warns when GPS approaches or leaves downloaded coverage and reports GPS quality clearly.
+- Restores interrupted activities in a paused state with checkpoint details.
+- Adds parking, junction and note markers, breadcrumb fitting, and multilingual offline POI aliases.
 
 ## v3.4.1 Unified navigation
 

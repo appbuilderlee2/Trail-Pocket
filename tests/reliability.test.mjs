@@ -1,0 +1,8 @@
+import test from 'node:test';
+import assert from 'node:assert/strict';
+import {createIntegrityManifest,verifyOfflineRecord,coverageStatus,routeCoverage,gpsQuality} from '../reliability-core.mjs';
+const record={packageVersion:3,bounds:{west:138,south:-35,east:138.02,north:-34.98},data:{elements:[{id:1}]},contours:[],searchIndex:[["toilet","Toilet",138.01,-34.99,"洗手間"]],routingGraph:{nodes:[[1,2]],edges:[]},parts:1};
+test('offline integrity detects truncated indexes after storage',()=>{const saved=structuredClone(record);saved.integrity=createIntegrityManifest(saved);assert.equal(verifyOfflineRecord(saved).ok,true);saved.searchIndex=[];assert.equal(verifyOfflineRecord(saved).ok,false);});
+test('coverage distinguishes safe interior edge and outside',()=>{assert.equal(coverageStatus([138.01,-34.99],[record]).state,'inside');assert.equal(coverageStatus([138.0001,-34.99],[record]).state,'edge');assert.equal(coverageStatus([139,-34.99],[record]).state,'outside');});
+test('route coverage requires every recorded route point to be downloaded',()=>{assert.equal(routeCoverage([[[138.01,-34.99],[138.019,-34.981]]],[record]).covered,true);assert.deepEqual(routeCoverage([[[138.01,-34.99],[139,-34]]],[record]),{covered:false,missing:1,total:2});});
+test('GPS quality reports waiting stale poor and good fixes',()=>{const now=100000,fix=(age,accuracy)=>({timestamp:now-age,coords:{accuracy}});assert.equal(gpsQuality(null,true,now).state,'waiting');assert.equal(gpsQuality(fix(25000,5),true,now).state,'stale');assert.equal(gpsQuality(fix(0,70),true,now).state,'poor');assert.equal(gpsQuality(fix(0,8),true,now).state,'good');});

@@ -44,7 +44,7 @@ export function setupActivity(ctx) {
     )
     .join(
       "",
-    )}</div><button id="startActivity" class="primary">▶ 開始活動</button><div id="activityBody" class="hide"><div id="activityProfile"></div><div class="activity-tools"><button id="activityDetailsShortcut"><span>⌁</span>活動紀錄 <b>›</b></button><button id="activityGpsShortcut"><span>◎</span>GPS 及緊急位置 <b>›</b></button><button id="activityMinimize"><span>↙</span>縮小活動面板 <b>›</b></button></div><div class="activity-settings"><label>活動名稱<input id="activityName" maxlength="160" aria-label="活動名稱"></label></div><div class="activity-actions"><button id="pauseActivity" class="activity-go">暫停</button><button id="resumeActivity" class="activity-go">繼續</button><button id="finishActivity">完成</button></div></div><p id="activityStatus" role="status">開始後會要求 GPS 定位，活動只儲存在此裝置。</p><p class="fineprint">保持亮屏可在「設定」更改。切換 App／真正熄屏仍可能自動暫停。GPS 不佳或中斷不會補畫直線；剩餘並非沿路導航。爬升為 GPS 估算。</p>`;
+    )}</div><button id="startActivity" class="primary">▶ 開始活動</button><div id="activityBody" class="hide"><div id="activityProfile"></div><div class="activity-tools"><button id="showBreadcrumb"><span>↶</span>查看來時軌跡 <b>›</b></button><button id="activityDetailsShortcut"><span>⌁</span>活動紀錄 <b>›</b></button><button id="activityGpsShortcut"><span>◎</span>GPS 及緊急位置 <b>›</b></button><button id="activityMinimize"><span>↙</span>縮小活動面板 <b>›</b></button></div><div class="activity-settings"><label>活動名稱<input id="activityName" maxlength="160" aria-label="活動名稱"></label></div><div class="activity-actions"><button id="pauseActivity" class="activity-go">暫停</button><button id="resumeActivity" class="activity-go">繼續</button><button id="finishActivity">完成</button></div></div><p id="activityStatus" role="status">開始後會要求 GPS 定位，活動只儲存在此裝置。</p><p class="fineprint">橙線是實際來時軌跡，可用來辨認回程方向。保持亮屏可在「設定」更改。切換 App／真正熄屏仍可能自動暫停。GPS 不佳或中斷不會補畫直線。</p>`;
   document.querySelector("#mapView .map-wrap").after(host);
   const history = el("section");
   history.className = "view hide";
@@ -375,6 +375,12 @@ export function setupActivity(ctx) {
     render();
   };
   $("activityDetailsShortcut").onclick = () => $("activityHistory").click();
+  $("showBreadcrumb").onclick = () => {
+    if (!ctx.map.fitActivityTrack()) return ctx.toast("未有足夠 GPS 軌跡可顯示。");
+    expanded = false;
+    render();
+    ctx.toast("已顯示完整來時軌跡；橙線由起點連到目前位置。");
+  };
   $("activityGpsShortcut").onclick = () => ctx.openSettings();
   $("pauseActivity").onclick = () => suspend();
   $("resumeActivity").onclick = continueActivity;
@@ -459,7 +465,9 @@ export function setupActivity(ctx) {
         active = draft.value;
         pause(active, active.savedAt);
         $("activityName").value = active.name;
-        message = "已恢復未完成活動（已暫停），中斷期間未計入。";
+        const points = active.segments.reduce((n, s) => n + s.length, 0),
+          saved = active.savedAt ? new Date(active.savedAt).toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" }) : "上次儲存";
+        message = `已恢復未完成活動（${points} 個 GPS 點，${saved} 儲存），目前已暫停；中斷期間未計入。`;
         ctx.map.setActivityTrack(active.segments);
         profile(active, $("activityProfile"));
         await save();
