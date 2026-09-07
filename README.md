@@ -1,6 +1,6 @@
-# Trail Pocket PWA v3.5.0
+# Trail Pocket PWA v3.5.1
 
-## v3.5.0 Field reliability
+## v3.5.1 Field reliability
 
 - Verifies each new offline package after IndexedDB storage and restores the previous copy on failure.
 - Warns when GPS approaches or leaves downloaded coverage and reports GPS quality clearly.

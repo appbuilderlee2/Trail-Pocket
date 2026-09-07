@@ -53,7 +53,8 @@ let routes = [],
   fix = null,
   follow = true,
   storeOK = false,
-  selectSerial = 0;
+  selectSerial = 0,
+  lastCoverageState = "none";
 const map = new TrailMap($("map"), () => {
   follow = false;
   $("follow").classList.remove("selected");
@@ -754,6 +755,12 @@ function gpsStatus() {
   const age = Math.max(0, Math.round((Date.now() - fix.timestamp) / 1000));
   const point = [fix.coords.longitude, fix.coords.latitude],
     coverage = coverageStatus(point, explore?.coverageRecords?.() || []);
+  const coverageKey = explore?.usesOffline?.() ? coverage.state : "online";
+  if (coverageKey !== lastCoverageState) {
+    if (coverageKey === "edge") toast(`接近已下載地圖邊界，約剩 ${coverage.distance} m。`);
+    if (coverageKey === "outside") toast("你已離開已下載地圖範圍；底圖及離線搜尋可能不完整。");
+    lastCoverageState = coverageKey;
+  }
   $("gpsStatus").textContent = quality.label +
     (age <= 20
       ?
@@ -935,6 +942,7 @@ async function restoreBackup(file) {
     await store.restoreAll(backup.data);
     await refresh();
     await geoPdf.refresh();
+    await markers.refresh();
     toast("備份已還原。請再做離線自檢及飛行模式測試。");
   } catch (e) {
     toast(failure(e));
