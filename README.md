@@ -1,4 +1,11 @@
-# Trail Pocket PWA v3.5.1
+# Trail Pocket PWA v3.6.0
+
+## v3.6.0 Faster combined offline maps
+
+- Uses a fast offline package by default while retaining OSM detail, local search and the walking graph.
+- Lets users opt into 20 m contours in Settings when terrain detail is needed.
+- Starts area selection near 120 km² and warns above 150 km² to avoid slow, dense downloads.
+- Labels the active source as one combined offline view and renders every overlapping saved area together.
 
 ## v3.5.1 Field reliability
 

@@ -54,7 +54,7 @@ export function setupExplore(ctx) {
     .querySelector(".trail-tools")
     .insertAdjacentHTML(
       "beforebegin",
-      `<div class="explore-tools"><label class="legacy-base">底圖 <select id="baseMode"><option value="auto">自動（離線優先）</option><option value="online">線上 OSM</option><option value="offline">已下載離線地圖</option><option value="geopdf">官方 GeoPDF</option></select></label><button id="jumpPlace">搜尋／目前位置</button><button id="selectArea" class="primary">選擇離線範圍</button></div><div id="exploreStatus" class="muted" role="status">正在選擇最可靠地圖來源。</div><div id="areaControls" class="area-controls hide"><label>區域名稱 <input id="areaName" maxlength="100" placeholder="例如 Para Wirra 北部"></label><p id="areaSize" role="status"></p><div class="row"><button id="saveArea" class="primary">下載底圖及等高線</button><button id="cancelArea">取消選取</button><button id="abortArea" class="hide">取消下載</button></div><p class="fineprint">下載 OSM 道路、步道、水域、林地、建築物、設施及地名，並以開放高程資料產生約 20 m 間距等高線。大型範圍會自動分區下載和合併；每張地圖上限 500 km²／128 MB。</p></div>`,
+      `<div class="explore-tools"><label class="legacy-base">底圖 <select id="baseMode"><option value="auto">自動（離線優先）</option><option value="online">線上 OSM</option><option value="offline">已下載離線地圖</option><option value="geopdf">官方 GeoPDF</option></select></label><button id="jumpPlace">搜尋／目前位置</button><button id="selectArea" class="primary">選擇離線範圍</button></div><div id="exploreStatus" class="muted" role="status">正在選擇最可靠地圖來源。</div><div id="areaControls" class="area-controls hide"><label>區域名稱 <input id="areaName" maxlength="100" placeholder="例如 Para Wirra 北部"></label><p id="areaSize" role="status"></p><div class="row"><button id="saveArea" class="primary">下載離線地圖</button><button id="cancelArea">取消選取</button><button id="abortArea" class="hide">取消下載</button></div><p class="fineprint">快速包包含 OSM 道路、步道、水域、林地、建築物、設施、地名、離線搜尋及步道路網。需要等高線可先到設定開啟；大型範圍較慢，建議分成多張地區圖，地圖會自動組合。</p></div>`,
     );
   document
     .querySelector(".map-wrap")
@@ -336,13 +336,14 @@ export function setupExplore(ctx) {
     $("geoOverlay").checked = geoOverlay;
     $("geoOpacity").value = Math.round(geoOpacity * 100);
     $("opacityValue").textContent = Math.round(geoOpacity * 100) + "%";
-    $("mapSourceSummary").textContent =
-      sourceLabels[mode] + (geoOverlay && mode !== "geopdf" ? " + GeoPDF" : "");
     const bounds = map.viewBounds(),
       near = [...areas, ...routeMaps].filter((item) =>
         overlaps(item.bounds, bounds),
       ),
       pdf = selectedPdf();
+    $("mapSourceSummary").textContent =
+      (effectiveMode === "offline" && mode !== "geopdf" ? `離線組合 · ${near.length} 張` : sourceLabels[mode]) +
+      (geoOverlay && mode !== "geopdf" ? " + GeoPDF" : "");
     $("sourceCoverage").textContent =
       mode === "geopdf"
         ? pdf
@@ -416,7 +417,8 @@ export function setupExplore(ctx) {
       const b = map.viewBounds(),
         near = [...areas, ...routeMaps].filter((m) => overlaps(m.bounds, b)),
         old = near.some((m) => m.packageVersion < 3 || !m.integrity),
-        noContours = near.some((m) => !m.terrain);
+        noContours = near.some((m) => !m.terrain),
+        fast = near.some((m) => m.terrain?.optional);
       $("exploreStatus").textContent =
         (navigator.onLine ? "離線優先" : "目前離線") +
         ` · 畫面涵蓋 ${near.length} 個已下載範圍。` +
@@ -428,7 +430,7 @@ export function setupExplore(ctx) {
             ? " 其中有舊版地圖，請重新下載以加入完整圖層、搜尋及導航路網。"
             : noContours
               ? " 其中有舊底圖未含等高線；重新下載即可加入。"
-              : " 已包含完整圖層、等高線、本機搜尋及步道路網。"
+              : ` 已包含完整圖層、本機搜尋及步道路網${fast ? "；快速包未下載等高線。" : "及等高線。"}`
           : "");
       $("retryTiles").classList.add("hide");
     }
@@ -548,7 +550,7 @@ export function setupExplore(ctx) {
     try {
       const size = validateArea(b);
       $("areaSize").textContent =
-        `框內 ${size.toFixed(2)} km² · ${b.south.toFixed(4)}, ${b.west.toFixed(4)} 至 ${b.north.toFixed(4)}, ${b.east.toFixed(4)}`;
+        `框內 ${size.toFixed(2)} km²${size > 150 ? " · 大型範圍下載較慢，建議分成數張地圖" : " · 適合快速下載"} · ${b.south.toFixed(4)}, ${b.west.toFixed(4)} 至 ${b.north.toFixed(4)}, ${b.east.toFixed(4)}`;
     } catch (e) {
       valid = false;
       $("areaSize").textContent = ctx.failure(e);
@@ -573,8 +575,8 @@ export function setupExplore(ctx) {
     map.resize();
     selecting = true;
     lockedBounds = null;
-    if (areaKm2(map.viewBounds(0.15)) > MAX_AREA_KM2)
-      map.zoom(Math.sqrt(400 / areaKm2(map.viewBounds(0.15))));
+    if (areaKm2(map.viewBounds(0.15)) > 150)
+      map.zoom(Math.sqrt(120 / areaKm2(map.viewBounds(0.15))));
     $("areaControls").classList.remove("hide");
     $("areaFrame").classList.remove("hide");
     $("areaProgress").textContent = "";
@@ -641,13 +643,14 @@ export function setupExplore(ctx) {
       if (controller.signal.aborted) throw Error("下載已取消。");
       $("areaProgress").textContent = "正在建立離線搜尋及步道路網…";
       const extra = buildOfflinePackage(data);
-      $("areaProgress").textContent = "正在下載及產生 20 m 等高線…";
-      const terrainResult = await downloadContours(bounds, {
-          signal: controller.signal,
-          onProgress: (p) =>
-            ($("areaProgress").textContent =
-              `正在下載高程 ${p.done}/${p.total}…`),
-        }),
+      const includeContours = ctx.includeTerrain();
+      $("areaProgress").textContent = includeContours ? "正在下載及產生 20 m 等高線…" : "正在完成快速離線包…";
+      const terrainResult = includeContours
+        ? await downloadContours(bounds, {
+            signal: controller.signal,
+            onProgress: (p) => ($("areaProgress").textContent = `正在下載高程 ${p.done}/${p.total}…`),
+          })
+        : { contours: [], terrain: { source: "快速離線包", optional: true, interval: null } },
         record = {
           id,
           name,
@@ -681,7 +684,7 @@ export function setupExplore(ctx) {
       ctx.toast(
         "「" +
           name +
-          "」底圖及等高線已儲存，現正預覽實際離線地圖。出發前請用飛行模式重開測試。",
+          `」${includeContours ? "底圖及等高線" : "快速離線地圖"}已儲存，現正預覽組合離線地圖。出發前請用飛行模式重開測試。`,
       );
     } catch (e) {
       $("areaProgress").textContent = controller.signal.aborted
@@ -709,7 +712,7 @@ export function setupExplore(ctx) {
       const card = el("article", undefined, "download-card"),
         detail =
           a.packageVersion >= 3 && a.integrity
-            ? `已驗證完整圖層 · ${a.stats?.searchEntries || 0} 搜尋項 · ${a.stats?.routingNodes || 0} 路網點 · 20 m 等高線`
+            ? `已驗證完整圖層 · ${a.stats?.searchEntries || 0} 搜尋項 · ${a.stats?.routingNodes || 0} 路網點 · ${a.terrain?.optional ? "快速包" : "20 m 等高線"}`
             : "舊版地圖；重新下載可加入搜尋及路網";
       card.append(
         el("h3", a.name),

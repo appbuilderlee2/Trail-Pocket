@@ -77,7 +77,7 @@ function formatSize(n) {
 }
 function mapDetail(m) {
   if (m?.packageVersion >= 3 && m.integrity)
-    return `已驗證完整圖層、${m.stats?.searchEntries || 0} 個搜尋項目及步道路網`;
+    return `已驗證完整圖層、${m.stats?.searchEntries || 0} 個搜尋項目及步道路網${m.terrain?.optional ? "；快速包不含等高線" : "及等高線"}`;
   if (m?.packageVersion >= 2)
     return "舊版完整包；請重新下載以加入儲存完整性核對";
   if (m?.terrain) return "舊版建築物、地標及等高線；重載可加入搜尋及步道路網";
@@ -315,7 +315,7 @@ function renderDownloads() {
           (m.buffer !== (r.buffer || 1000) ? "。新選擇範圍尚未下載。" : "")
         : "預計涵蓋 " +
           area.toFixed(1) +
-          " km²；下載包括建築物、地標及 20 m 等高線。");
+          ` km²；快速包包括建築物、地標、搜尋及步道路網${$("downloadContours").checked ? "，並加入 20 m 等高線" : ""}。`);
     if (status.textContent.startsWith("下載失敗"))
       status.classList.add("error");
     card.append(status);
@@ -482,12 +482,14 @@ async function download(route) {
     if (controller.signal.aborted) throw Error("已取消下載。");
     setDownloadStatus(route.id, "正在建立離線搜尋及步道路網…");
     const extra = buildOfflinePackage(data);
-    setDownloadStatus(route.id, "正在下載及產生 20 m 等高線…");
-    const terrainResult = await downloadContours(bounds, {
-        signal: controller.signal,
-        onProgress: (p) =>
-          setDownloadStatus(route.id, `正在下載高程 ${p.done}/${p.total}…`),
-      }),
+    const includeContours = $("downloadContours").checked;
+    setDownloadStatus(route.id, includeContours ? "正在下載及產生 20 m 等高線…" : "正在完成快速離線包…");
+    const terrainResult = includeContours
+      ? await downloadContours(bounds, {
+          signal: controller.signal,
+          onProgress: (p) => setDownloadStatus(route.id, `正在下載高程 ${p.done}/${p.total}…`),
+        })
+      : { contours: [], terrain: { source: "快速離線包", optional: true, interval: null } },
       record = {
         id: route.id,
         bounds,
@@ -513,7 +515,7 @@ async function download(route) {
       selectedMap = record;
       map.setBase(record);
     }
-    toast("「" + route.name + "」完整離線地圖、搜尋及步道路網已儲存。");
+    toast("「" + route.name + `」${includeContours ? "完整" : "快速"}離線地圖、搜尋及步道路網已儲存。`);
   } catch (e) {
     const cancelled =
       controller.signal.aborted && controller.signal.reason !== "timeout";
@@ -896,7 +898,7 @@ async function offlineAudit() {
     $("shellStatus").textContent =
       `離線自檢通過 · ${records.length + geoPdfs.length} 張完整地圖`;
     $("storageInfo").textContent =
-      "已讀回完整圖層、GeoPDF、等高線、搜尋索引及步道路網。仍請開飛行模式重開測試。";
+      "已讀回完整圖層、GeoPDF、搜尋索引及步道路網；已選擇的等高線亦已核對。仍請開飛行模式重開測試。";
     toast("離線自檢通過。出發前最後用飛行模式重開一次。");
   } catch (e) {
     $("shellIcon").textContent = "!";
@@ -1044,6 +1046,8 @@ $("routeSearch").oninput = renderRoutes;
 $("routeSort").onchange = renderRoutes;
 $("gps").onclick = gps;
 $("compassToggle").onclick = toggleCompass;
+$("downloadContours").onchange = () =>
+  store.put("settings", { id: "download-contours", value: $("downloadContours").checked }).catch(() => {});
 setInterval(() => { if (!document.hidden) { directionStatus(); if (compassFix && Date.now() - compassFix.timestamp > 3000) { compassFix = null; map.setCompass(null); } } }, 1000);
 document.addEventListener("visibilitychange", () => { compassFix = null; map.setCompass(null); });
 $("copyPosition").onclick = async () => {
@@ -1160,6 +1164,7 @@ const explore = setupExplore({
   formatSize,
   storageInfo,
   getGeoPdf: () => geoPdf,
+  includeTerrain: () => $("downloadContours").checked,
 });
 const markers = setupMarkers({
   map,
@@ -1204,6 +1209,7 @@ async function boot() {
   try {
     await store.openStore();
     storeOK = true;
+    $("downloadContours").checked = (await store.get("settings", "download-contours"))?.value === true;
     await refresh();
     await adventure.init();
     await geoPdf.init();

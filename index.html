@@ -25,7 +25,7 @@
     <header>
       <div><b>TRAIL POCKET</b><small>帶住路線，離線出發</small></div>
       <div class="header-status">
-        <span class="version">v3.5.1</span
+        <span class="version">v3.6.0</span
         ><span id="network" class="chip">檢查連線</span>
       </div>
     </header>
@@ -114,17 +114,15 @@
           先到「我的路線」匯入 GPX／KML。
         </p>
         <p class="fineprint">
-          完整離線包包含 OSM
-          道路等級、步道、水域、土地用途、建築物、山峰、廁所、停車場、地名、約
-          20 m
-          等高線、本機搜尋索引及步道路網。大型範圍會分區下載，完成後合併使用。只覆蓋所選範圍，並非
+          快速離線包包含 OSM
+          道路等級、步道、水域、土地用途、建築物、山峰、廁所、停車場、地名、本機搜尋索引及步道路網；可在設定選擇加入約 20 m 等高線。多張地圖會在畫面自動拼合使用。只覆蓋所選範圍，並非
           OSM
           全球資料庫；唔包含衛星影像、即時封路或現場危險。下載時矩形範圍會傳送至公共
           Overpass 及開放高程服務，GPX／KML 本身留喺手機。
         </p>
       </section>
       <section id="settingsView" class="view hide">
-        <div class="eyebrow">TRAIL POCKET · V3.5.1</div>
+        <div class="eyebrow">TRAIL POCKET · V3.6.0</div>
         <h1>設定</h1>
         <p class="settings-intro">定位、地圖、安全提醒、離線檢查及使用說明集中在這裏。</p>
 
@@ -163,6 +161,7 @@
 
         <section class="settings-card settings-storage">
           <h2>離線與本機資料</h2>
+          <label class="settings-switch"><span><b>下載時加入 20 m 等高線</b><small>關閉可大幅縮短下載時間；OSM 圖層、離線搜尋及步道路網仍會完整保留。</small></span><input id="downloadContours" type="checkbox"></label>
           <div class="storage-card">
             <div><span id="shellIcon">○</span><strong id="shellStatus">檢查 App 離線狀態…</strong><small id="storageInfo"></small></div>
             <div class="storage-actions">
