@@ -210,3 +210,5 @@ Weather data by Open-Meteo：https://open-meteo.com/ ，資料按 CC BY 4.0 使�
 等高線使用 Mapzen Terrain Tiles／AWS Open Data；各地區須依原始高程資料來源標示。南澳洲資料 © Commonwealth of Australia (Geoscience Australia) 2017。完整資料來源及署名：https://github.com/tilezen/joerd/blob/master/docs/attribution.md 。
 
 示例底圖 `assets/devils-base.json` 為 2026-09-03 擷取的原始地理範圍資料，按 ODbL 1.0 提供。GPS 示例來自使用者提供的 Walking SA GPX/KML，原有權利維持不變。
+
+Release validation: 71 automated checks pass. Device compass and background GPS require field validation on the actual phone.
