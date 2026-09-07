@@ -23,7 +23,7 @@ export function setupGeoPdf(ctx) {
     return b;
   };
   $("offlineView")
-    .querySelector(".storage-card")
+    .querySelector(".heading")
     .insertAdjacentHTML(
       "afterend",
       '<section class="geopdf-library"><div class="row"><div><h2>官方 GeoPDF 地圖</h2><p>匯入帶地理定位嘅官方 PDF，完全離線顯示 GPS 藍點。</p></div><button id="importGeoPdf" class="primary">＋ 匯入 GeoPDF</button></div><input id="geoPdfFile" type="file" accept=".pdf,application/pdf" hidden><p id="geoPdfProgress" class="muted" role="status"></p><div id="geoPdfList"></div><p id="geoPdfEmpty" class="muted">尚未匯入 GeoPDF。</p><p class="fineprint">只支援 PDF 1.7 Geospatial PDF 嘅 VP／Measure／GPTS／LPTS 地理資訊。普通 PDF、掃描圖、受密碼保護檔案及 TerraGo 專有格式可能不支援；App 不會猜測位置。匯入及 GPS 都只在本機處理。</p></section>',
