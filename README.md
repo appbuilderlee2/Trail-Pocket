@@ -1,6 +1,6 @@
-# Trail Pocket PWA v3.3.0
+# Trail Pocket PWA v3.3.1
 
-## v3.3.0 Direction and hiking UI
+## v3.3.1 Direction and hiking UI
 
 - GPS movement bearing and opt-in phone compass are clearly distinguished; null, stale and low-confidence readings never produce a direction cone.
 - Direction cone is geographically projected on online, offline and GeoPDF maps. GeoPDF uses local geographic control-point projection, not an assumed north-up image.
@@ -210,5 +210,3 @@ Weather data by Open-Meteo：https://open-meteo.com/ ，資料按 CC BY 4.0 使�
 等高線使用 Mapzen Terrain Tiles／AWS Open Data；各地區須依原始高程資料來源標示。南澳洲資料 © Commonwealth of Australia (Geoscience Australia) 2017。完整資料來源及署名：https://github.com/tilezen/joerd/blob/master/docs/attribution.md 。
 
 示例底圖 `assets/devils-base.json` 為 2026-09-03 擷取的原始地理範圍資料，按 ODbL 1.0 提供。GPS 示例來自使用者提供的 Walking SA GPX/KML，原有權利維持不變。
-
-Release validation: 71 automated checks pass. Device compass and background GPS require field validation on the actual phone.
