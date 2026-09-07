@@ -84,3 +84,11 @@ export function gpsQuality(fix, active, now = Date.now()) {
     return { state: "fair", age, accuracy, label: `GPS 一般 · ±${accuracy} m` };
   return { state: "good", age, accuracy, label: `GPS 良好 · ±${accuracy} m` };
 }
+
+export function gpsAltitude(fix, maxAccuracy = 30) {
+  const altitude = fix?.coords?.altitude,
+    accuracy = fix?.coords?.altitudeAccuracy;
+  if (!Number.isFinite(altitude) || !Number.isFinite(accuracy) || accuracy < 0 || accuracy > maxAccuracy)
+    return null;
+  return { metres: Math.round(altitude), accuracy: Math.round(accuracy) };
+}

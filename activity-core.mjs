@@ -1,6 +1,6 @@
 import {distance} from './core.mjs';
 export function newActivity(route,now=Date.now()){
- return {id:crypto.randomUUID(),name:route?.name||'自由行山',routeId:route?.id||null,plannedLength:route?.length||null,created:now,status:'paused',elapsed:0,started:null,segments:[],distance:0,ascent:0,altitudeSamples:0,lastTimestamp:0,anchor:null,altAnchor:null};
+ return {id:crypto.randomUUID(),name:route?.name||'自由行山',routeId:route?.id||null,plannedLength:route?.length||null,created:now,status:'paused',elapsed:0,started:null,segments:[],distance:0,ascent:0,altitudeSamples:0,lastTimestamp:0,anchor:null,altAnchor:null,gpsGapSeconds:0,gpsGapCount:0};
 }
 export function elapsed(a,now=Date.now()){return a.elapsed+(a.status==='recording'?Math.max(0,now-a.started):0);}
 export function resume(a,now=Date.now()){if(a.status==='recording')return;a.status='recording';a.started=now;a.anchor=null;a.altAnchor=null;}
@@ -15,12 +15,12 @@ export function addFix(a,fix,now=Date.now()){
  a.lastTimestamp=t;
  if(c.accuracy>40){a.anchor=null;a.altAnchor=null;return 'GPS 精度不足，暫不累計距離';}
  const alt=Number.isFinite(c.altitude)&&Number.isFinite(c.altitudeAccuracy)&&c.altitudeAccuracy<=20&&c.altitudeAccuracy>=0?c.altitude:null;
- const p=[c.longitude,c.latitude,alt,t,c.accuracy];let d=0;
- if(a.anchor){const dt=(t-a.anchor[3])/1000;d=distance(a.anchor,p);if(dt>30){a.anchor=null;a.altAnchor=null;d=0;}else if(d/dt>4.5){a.anchor=null;a.altAnchor=null;return 'GPS 跳點已忽略';}else if(d<Math.max(3,c.accuracy*.75,(Number(a.anchor[4])||0)*.75))return '記錄中 · 已過濾細微 GPS 漂移';}
+ const p=[c.longitude,c.latitude,alt,t,c.accuracy];let d=0,gap=0;
+ if(a.anchor){const dt=(t-a.anchor[3])/1000;d=distance(a.anchor,p);if(dt>30){gap=Math.round(dt);a.gpsGapSeconds=(a.gpsGapSeconds||0)+gap;a.gpsGapCount=(a.gpsGapCount||0)+1;a.anchor=null;a.altAnchor=null;d=0;}else if(d/dt>4.5){a.anchor=null;a.altAnchor=null;return 'GPS 跳點已忽略';}else if(d<Math.max(3,c.accuracy*.75,(Number(a.anchor[4])||0)*.75))return '記錄中 · 已過濾細微 GPS 漂移';}
  if(a.segments.reduce((n,s)=>n+s.length,0)>=50000){pause(a,now);return '已達 50,000 點，請完成並開始另一個活動';}
  if(!a.anchor)a.segments.push([]);
  a.segments.at(-1).push(p);a.distance+=d;a.anchor=p;
  if(alt!==null){a.altitudeSamples++;if(a.altAnchor===null)a.altAnchor=alt;else if(Math.abs(alt-a.altAnchor)>=5){a.ascent+=Math.max(0,alt-a.altAnchor);a.altAnchor=alt;}}else a.altAnchor=null;
- return '記錄中 · 已計 '+Math.round(a.distance)+' m · GPS 精度 ±'+Math.round(c.accuracy)+' m';
+ return gap?'GPS 曾中斷 '+gap+' 秒；該段未計距離':'記錄中 · 已計 '+Math.round(a.distance)+' m · GPS 精度 ±'+Math.round(c.accuracy)+' m';
 }
 export function clock(ms){const seconds=Math.floor(Math.max(0,ms)/1000),h=Math.floor(seconds/3600),m=Math.floor(seconds/60)%60,s=seconds%60;return (h?h+':'+String(m).padStart(2,'0'):m)+':'+String(s).padStart(2,'0');}

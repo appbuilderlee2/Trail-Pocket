@@ -1,4 +1,10 @@
-# Trail Pocket PWA v3.7.1
+# Trail Pocket PWA v3.8.0
+
+## v3.8.0 GPS continuity and elevation
+
+- Current GPS altitude appears only when iOS supplies usable vertical accuracy.
+- Activity records count GPS gaps instead of silently hiding missing distance.
+- Returning after screen lock or app switching reports the unrecorded interval.
 
 ## v3.7.1 Live map and activity distance reliability
 

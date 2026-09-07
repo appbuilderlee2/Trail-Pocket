@@ -34,6 +34,7 @@ import {
   coverageStatus,
   routeCoverage,
   gpsQuality,
+  gpsAltitude,
 } from "./reliability-core.mjs";
 import { setupMarkers } from "./markers.mjs";
 const $ = (id) => document.getElementById(id),
@@ -54,7 +55,8 @@ let routes = [],
   follow = true,
   storeOK = false,
   selectSerial = 0,
-  lastCoverageState = "none";
+  lastCoverageState = "none",
+  trackingState = "";
 const map = new TrailMap($("map"), () => {
   follow = false;
   $("follow").classList.remove("selected");
@@ -696,7 +698,9 @@ function emergencyStatus() {
     lat = fix.coords.latitude.toFixed(5),
     lon = fix.coords.longitude.toFixed(5);
   coords.textContent = lat + ", " + lon;
-  meta.textContent = `精度 ±${Math.round(fix.coords.accuracy)} m · ${age} 秒前更新 · 不會自動求救`;
+  const height = gpsAltitude(fix),
+    altitude = height ? ` · 海拔 ${height.metres} m（垂直 ±${height.accuracy} m）` : " · 暫未有可靠高度";
+  meta.textContent = `精度 ±${Math.round(fix.coords.accuracy)} m${altitude} · ${age} 秒前更新 · 不會自動求救`;
   copy.disabled = false;
   copy.dataset.position =
     lat + ", " + lon + `（精度 ±${Math.round(fix.coords.accuracy)} m）`;
@@ -710,8 +714,10 @@ function directionStatus() {
     coverage = fix ? coverageStatus([fix.coords.longitude, fix.coords.latitude], explore?.coverageRecords?.() || []) : null,
     range = coverage?.state === "edge" ? ` · 離線邊界 ${coverage.distance}m` : coverage?.state === "outside" && explore?.usesOffline?.() ? " · 已離開下載範圍" : "",
     state = quality.label + range;
-  const label = heading ? `${heading.source === "course" ? "行進" : "朝向"} ${Math.round(heading.bearing)}°` : "方向未確認";
-  $("mapPositionStatus").textContent = state + " · " + label;
+  const label = heading ? `${heading.source === "course" ? "行進" : "朝向"} ${Math.round(heading.bearing)}°` : "方向未確認",
+    height = gpsAltitude(fix),
+    altitude = height ? ` · 海拔 ${height.metres} m` : "";
+  $("mapPositionStatus").textContent = state + " · " + label + altitude + (trackingState ? " · " + trackingState : "");
   $("mapPositionStatus").classList.toggle("position-warning", ["stale","poor"].includes(quality.state) || coverage?.state === "outside" || coverage?.state === "edge");
   $("compassStatus").textContent = compassMessage || (heading ? label + (heading.source === "compass" ? "（手機指南針，可能受磁場影響）" : "（GPS 行進方向，並非手機朝向）") : compassEnabled ? "等待可靠方向；請平放手機，遠離磁石。訊號過時會隱藏扇形。" : "行走時可顯示 GPS 行進方向；開啟指南針後可在停留時顯示手機朝向。");
 }
@@ -1143,6 +1149,7 @@ const activity = setupActivity({
     if (watch === null) gps();
   },
   stopGPS,
+  trackingStatus: (value) => { trackingState = value; directionStatus(); },
   openSettings: () => nav("settings"),
   toast,
   failure,

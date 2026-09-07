@@ -183,6 +183,7 @@ export function setupActivity(ctx) {
   }
   function render() {
     const running = active?.status === "recording";
+    ctx.trackingStatus?.(!active ? "" : running ? (message.startsWith("GPS 曾中斷") ? message.replace("；該段未計距離", "") : "活動記錄中") : "活動已暫停");
     host.classList.toggle("is-expanded", expanded);
     host.classList.toggle("has-activity", !!active);
     $("activitySheetToggle").setAttribute("aria-expanded", String(expanded));
@@ -200,7 +201,8 @@ export function setupActivity(ctx) {
         : "活動已暫停"
       : "開始你嘅行程";
     $("activityStatus").textContent =
-      message || "開始後會要求 GPS 定位，活動只儲存在此裝置。";
+      (message || "開始後會要求 GPS 定位，活動只儲存在此裝置。") +
+      (active?.gpsGapSeconds ? ` 累計有 ${active.gpsGapCount || 1} 次 GPS 中斷、約 ${active.gpsGapSeconds} 秒沒有計算距離。` : "");
     $("gps").disabled = !!running;
     for (const id of ["pauseActivity", "resumeActivity", "finishActivity"])
       $(id).disabled = busy;
@@ -265,6 +267,7 @@ export function setupActivity(ctx) {
   }
   async function suspend(reason) {
     if (!active || active.status !== "recording") return;
+    if (reason && /切換 App|熄屏|離開頁面/.test(reason)) active.interruptedAt = Date.now();
     pause(active);
     ctx.stopGPS();
     await wake.release();
@@ -280,8 +283,10 @@ export function setupActivity(ctx) {
     render();
     try {
       if (!(await lock())) throw Error("另一個視窗正在使用活動紀錄。");
-      resume(active);
-      message = "等候新 GPS 訊號…";
+      const now = Date.now(), interrupted = active.interruptedAt ? Math.max(0,Math.round((now-active.interruptedAt)/1000)) : 0;
+      if(interrupted){active.gpsGapSeconds=(active.gpsGapSeconds||0)+interrupted;active.gpsGapCount=(active.gpsGapCount||0)+1;active.interruptedAt=null;}
+      resume(active,now);
+      message = interrupted ? `已重新記錄；中斷 ${interrupted} 秒期間未計距離。` : "等候新 GPS 訊號…";
       await save();
       ctx.ensureGPS();
       await syncWake();
@@ -360,6 +365,7 @@ export function setupActivity(ctx) {
         "p",
         `累計爬升 ${m.ascent === null ? "—" : Math.round(m.ascent) + " m"} · 平均配速 ${m.pace === null ? "—" : clock(m.pace * 1000) + "/km"}`,
       ),
+      ...(a.gpsGapSeconds ? [el("p", `GPS 曾中斷 ${a.gpsGapCount || 1} 次、約 ${a.gpsGapSeconds} 秒；中斷期間沒有估算或補畫距離。`, "position-warning")] : []),
     );
     profile(a, $("savedActivityProfile"));
     $("exportActivity").disabled = !a.segments.some((s) => s.length > 1);
