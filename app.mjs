@@ -1,3 +1,4 @@
+import { setupUnifiedUI } from "./unified-ui.mjs";
 import { compassReading, chooseHeading } from "./heading.mjs";
 import {
   parseRoute,
@@ -97,8 +98,8 @@ function nav(name, tab = name === "routes" ? "saved" : name === "map" ? "explore
     return;
   }
   currentView = name;
-  currentTab = tab;
-  for (const n of ["routes", "map", "offline", "settings"])
+  currentTab = ["routes", "offline", "history"].includes(name) ? "saved" : tab;
+  for (const n of ["routes", "map", "offline", "history", "settings"])
     $(n + "View").classList.toggle("hide", n !== name);
   document
     .querySelectorAll("nav button")
@@ -110,6 +111,7 @@ function nav(name, tab = name === "routes" ? "saved" : name === "map" ? "explore
     });
   }
   if (name === "offline" || name === "settings") storageInfo();
+  window.dispatchEvent(new CustomEvent("trail:view", {detail:name}));
   explore.viewChanged();
   window.scrollTo({ top: 0 });
 }
@@ -211,6 +213,14 @@ function renderRoutes() {
     del.setAttribute("aria-label", "刪除 " + r.name);
     del.disabled = jobs.has(r.id);
     actions.append(del);
+    const more = document.createElement("details");
+    more.className = "row-more";
+    const summary = document.createElement("summary");
+    summary.textContent = "更多";
+    more.append(summary);
+    const options = document.createElement("div");
+    for (const b of [...actions.children].slice(1)) options.append(b);
+    more.append(options); actions.append(more);
     body.append(actions);
     card.append(body);
     $("routeList").append(card);
@@ -1088,6 +1098,7 @@ const adventure = setupAdventure({
 });
 const activity = setupActivity({
   map,
+  nav,
   getRoute: () => selected,
   isReady: () => storeOK,
   isEditing: () => adventure.isEditing(),
@@ -1169,4 +1180,5 @@ async function boot() {
   nav("map");
   await setupOffline();
 }
+setupUnifiedUI({nav});
 boot();
