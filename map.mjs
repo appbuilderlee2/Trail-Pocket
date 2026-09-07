@@ -1,3 +1,4 @@
+import { chooseHeading, destination, drawHeadingCone } from "./heading.mjs";
 import { project, unproject, joinWays, distance } from "./core.mjs";
 import { WORLD, viewportBounds } from "./explore-core.mjs";
 import {
@@ -321,6 +322,14 @@ export class TrailMap {
     this.units = Math.min(2, this.units);
     this.draw();
   }
+  setCompass(reading) {
+    this.compass = reading;
+    this.draw();
+  }
+  drawDirection(c, p, point, screen) {
+    const direction = chooseHeading(this.fix, this.compass);
+    if (direction) drawHeadingCone(c, p, screen(destination(point, direction.bearing)));
+  }
   setFix(fix, follow = false) {
     this.fix = fix;
     if (follow && fix) {
@@ -496,6 +505,8 @@ export class TrailMap {
         c.arc(p[0], p[1], Math.max(4, r), 0, Math.PI * 2);
         c.fillStyle = stale ? "#88888822" : "#258bdb22";
         c.fill();
+        c.beginPath();
+        this.drawDirection(c, p, point, q => this.geoScreen(q));
         c.beginPath();
         c.arc(p[0], p[1], 7, 0, Math.PI * 2);
         c.fillStyle = color;
@@ -871,6 +882,8 @@ export class TrailMap {
       c.arc(p[0], p[1], Math.min(10000, acc), 0, Math.PI * 2);
       c.fillStyle = stale ? "#88888822" : "#258bdb22";
       c.fill();
+      c.beginPath();
+      this.drawDirection(c, p, pt, q => this.screen(project(q)));
       c.beginPath();
       c.arc(p[0], p[1], 7, 0, Math.PI * 2);
       c.fillStyle = color;
