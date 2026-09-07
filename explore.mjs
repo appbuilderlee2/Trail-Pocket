@@ -68,7 +68,7 @@ export function setupExplore(ctx) {
       `<div class="map-quick-tools"><button id="mapSourceButton" class="map-source-button" aria-label="選擇地圖來源"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="m3 7 9-4 9 4-9 4-9-4Zm0 5 9 4 9-4M3 17l9 4 9-4"/></svg><span><b>地圖來源</b><small id="mapSourceSummary">自動 · 離線優先</small></span><svg class="chevron" viewBox="0 0 24 24" aria-hidden="true"><path d="m8 10 4 4 4-4"/></svg></button></div>`,
     );
   $("offlineView")
-    .querySelector(".storage-card")
+    .querySelector(".heading")
     .insertAdjacentHTML(
       "afterend",
       '<section class="area-library"><div class="row"><h2>我的離線區域</h2><button id="chooseFromOffline">＋ 地圖選區</button></div><div id="areaList"></div><p id="areaEmpty">未有獨立區域。毋須 GPX／KML，可直接喺地圖揀位置下載。</p></section><h2>路線附近底圖</h2>',
