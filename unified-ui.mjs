@@ -41,6 +41,11 @@ export function setupUnifiedUI(ctx) {
  document.querySelectorAll('.eyebrow,.activity-heading small').forEach(e=>e.hidden=true);
  document.querySelector('#routesView h1').textContent='路線';
  $('startActivity').textContent='開始活動';
+ const downloadGuide=document.createElement('details');downloadGuide.className='settings-guide';downloadGuide.innerHTML='<summary>離線地圖格式及下載說明</summary>';
+ for(const note of [...$('offlineView').querySelectorAll('.fineprint')])downloadGuide.append(note);
+ $('settingsView').append(downloadGuide);
+ for(const b of row.querySelectorAll('button'))b.textContent=b.textContent.replace(/^[＋✎▧]\s*/, '');
+ for(const b of items.querySelectorAll('button'))b.textContent=b.textContent.replace(/^[☀⌁✎]\s*/, '');
  for(const [id,title]of [['settingsMapSource','地圖來源及 GeoPDF'],['settingsLayers','地圖圖層'],['settingsAlerts','偏离路線提醒']]){
   const b=$(id);b.querySelector('span').innerHTML=icon(id==='settingsMapSource'?'layers':id==='settingsLayers'?'map':'location');b.querySelector('i').innerHTML='<svg viewBox="0 0 24 24" aria-hidden="true" fill="none" stroke="currentColor" stroke-width="1.8"><path d="m9 5 7 7-7 7"/></svg>';
  }
