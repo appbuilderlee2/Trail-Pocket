@@ -1,0 +1,25 @@
+:root{--ink:#193f32;--muted:#627069;--border:#e4e9e5;--lime:#b8ee92}
+body{background:#fff;color:var(--ink)}
+button,input,select,summary{font-family:inherit}button{min-height:44px;border-radius:12px}button:focus-visible,summary:focus-visible{outline:3px solid #75a88b;outline-offset:3px}
+[hidden]{display:none!important}
+nav{background:#fffffff2}nav button{width:160px;max-width:33.333%;display:flex;flex-direction:column;align-items:center;gap:3px}nav button svg{height:23px;width:23px}nav button span{font-size:11px!important;line-height:1.3!important;margin:0!important}
+.library-header h1{margin:0 0 20px;font-size:34px;letter-spacing:-1px}.library-tabs{display:flex;gap:22px;border-bottom:1px solid var(--border);margin-bottom:20px}.library-tabs button{background:none;border:0;border-radius:0;padding:12px 2px;font-size:15px;color:var(--muted);border-bottom:3px solid transparent}.library-tabs button[aria-selected=true]{color:var(--ink);border-bottom-color:var(--ink);font-weight:750}
+#routesView>.heading,#routesView>.route-tools,#offlineView>.heading,#historyView>h2{display:none}
+.library-actions{margin:0 0 16px}.library-actions>summary{cursor:pointer;display:inline-flex;padding:10px 15px;border:1px solid var(--border);border-radius:12px;font-weight:650;font-size:13px;list-style:none}.library-actions>summary:after{content:'＋';margin-left:12px}.library-actions[open]>summary:after{content:'−'}.library-actions>div{display:flex;flex-wrap:wrap;gap:8px;margin-top:12px}
+#routeList .route-card,.download-card,.area-library article,.geopdf-card{background:#fff;border:0;border-bottom:1px solid var(--border);border-radius:0;box-shadow:none;padding:18px 0;margin:0}
+#routeList .card-actions button{flex:0 1 auto;min-height:40px}#routeList .card-actions .small{margin-left:auto;width:40px}
+#historyView{max-width:900px}.activity-record{border:0;border-bottom:1px solid var(--border);border-radius:0;padding:18px 0;background:#fff}
+.map-head .icon svg,.map-buttons button svg{width:22px;height:22px}.settings-list svg{width:23px;height:23px}
+.map-tool-menu{position:absolute;right:14px;bottom:76px;z-index:7}.map-tool-menu>summary{list-style:none;cursor:pointer;width:44px;height:44px;display:grid;place-items:center;border-radius:50%;background:#fff;box-shadow:0 3px 15px #193f3220}.map-tool-menu>summary::-webkit-details-marker{display:none}.map-tool-menu svg{width:24px;height:24px}.map-tool-items{position:absolute;right:0;bottom:54px;width:220px;background:#fff;padding:8px;border:1px solid var(--border);border-radius:16px;box-shadow:0 10px 35px #193f3228}.map-tool-items button,.map-tool-items .trail-tools{display:flex!important;width:100%;margin:0!important;flex-direction:column;gap:4px}.map-tool-items button{font-size:13px!important;align-items:flex-start;border:0;padding:12px!important;background:#fff;color:var(--ink)}.map-tool-items button:after{display:none!important}.map-tool-items button:hover{background:#f1f5f0}.map-tool-items button:disabled{opacity:.45}
+#mapView>.explore-tools,#mapView>#exploreStatus{display:none}#mapView .map-quick-tools{width:auto;left:14px;right:auto}#mapView .map-source-button{min-width:0}
+.settings-card{border:0;border-bottom:1px solid var(--border);border-radius:0;box-shadow:none;padding:20px 0;margin:0;background:#fff}.settings-card h2{font-size:19px}.settings-intro{font-size:13px}.settings-list button{border-radius:0}
+@media(max-width:600px){
+ main{padding-top:22px}.library-header h1{font-size:32px}.library-tabs{gap:0;justify-content:space-between}.library-tabs button{font-size:14px;padding:12px 8px}
+ #mapView .map-quick-tools{left:auto;right:12px;width:44px}
+ #mapView .map-tool-menu{right:12px;bottom:calc(168px + env(safe-area-inset-bottom))}
+ #mapView:has(.activity-panel.has-activity:not(.is-expanded)) .map-tool-menu{bottom:calc(96px + env(safe-area-inset-bottom))}
+ #mapView .activity-panel.is-expanded~.map-tool-menu{display:none}
+ .saved-controls{gap:6px}.saved-controls input{width:0;font-size:14px}.saved-controls select{max-width:120px;font-size:12px}
+ .settings-card .storage-actions{gap:8px}nav button{flex:1;max-width:none;min-height:48px}
+}
+.row-more{position:relative;margin-left:auto}.row-more>summary{list-style:none;padding:10px 14px;min-height:40px;cursor:pointer;border:1px solid var(--border);border-radius:12px;font-size:12px}.row-more>div{position:absolute;right:0;top:46px;z-index:4;width:180px;padding:8px;border:1px solid var(--border);background:#fff;border-radius:12px;box-shadow:0 8px 24px #193f321a}.row-more>div button{width:100%!important;margin:0!important;justify-content:flex-start}.row-more>div .small{font-size:0!important}.row-more>div .small:after{content:'刪除路線';font-size:12px;color:#9a382f}
