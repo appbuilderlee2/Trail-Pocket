@@ -1,4 +1,13 @@
-# Trail Pocket PWA v3.2.2
+# Trail Pocket PWA v3.3.0
+
+## v3.3.0 Direction and hiking UI
+
+- GPS movement bearing and opt-in phone compass are clearly distinguished; null, stale and low-confidence readings never produce a direction cone.
+- Direction cone is geographically projected on online, offline and GeoPDF maps. GeoPDF uses local geographic control-point projection, not an assumed north-up image.
+- Compass permission is requested only by a Settings button. Hidden-page readings are discarded; GPS stop also stops compass listeners.
+- Mobile map fills the viewport with compact time/distance/start controls, source button and GPS freshness/accuracy status.
+- Saved routes use compact route previews, local name search and name/distance/offline-first sorting.
+- Browser sensor support varies. GPS course is travel direction, not phone orientation. Compass may be magnetic rather than true north; it is an orientation aid, not a route instruction. Screen-off/background recording remains subject to browser restrictions.
 
 ## v3.2.2 Clear navigation and settings
 
