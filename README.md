@@ -1,4 +1,13 @@
-# Trail Pocket PWA v3.3.1
+# Trail Pocket PWA v3.4.0
+
+## v3.4.0 Unified navigation
+
+- Three primary destinations: Map, My Library and Settings.
+- My Library contains Routes, Offline Maps (including GeoPDF), and an inline Activity History page.
+- Map search/download/route tools are grouped in one accessible More tools menu.
+- Saved route secondary actions are under More; add/import actions share one disclosure.
+- Shared typography, white surfaces, list separators, outlined navigation icons and consistent controls.
+- Existing GPS, offline data, route editing and recording remain on their existing data model.
 
 ## v3.3.1 Direction and hiking UI
 
