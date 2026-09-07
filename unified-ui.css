@@ -23,3 +23,5 @@ nav{background:#fffffff2}nav button{width:160px;max-width:33.333%;display:flex;f
  .settings-card .storage-actions{gap:8px}nav button{flex:1;max-width:none;min-height:48px}
 }
 .row-more{position:relative;margin-left:auto}.row-more>summary{list-style:none;padding:10px 14px;min-height:40px;cursor:pointer;border:1px solid var(--border);border-radius:12px;font-size:12px}.row-more>div{position:absolute;right:0;top:46px;z-index:4;width:180px;padding:8px;border:1px solid var(--border);background:#fff;border-radius:12px;box-shadow:0 8px 24px #193f321a}.row-more>div button{width:100%!important;margin:0!important;justify-content:flex-start}.row-more>div .small{font-size:0!important}.row-more>div .small:after{content:'刪除路線';font-size:12px;color:#9a382f}
+
+#routeList .route-card{overflow:visible}.settings-guide{padding:18px 0;border-bottom:1px solid var(--border);max-width:820px}.settings-guide summary{cursor:pointer;font-size:15px;font-weight:650;min-height:44px;display:flex;align-items:center}
