@@ -26,7 +26,7 @@ export function createBackup(data, now = Date.now()) {
     format: BACKUP_FORMAT,
     version: BACKUP_VERSION,
     created: new Date(now).toISOString(),
-    appVersion: "3.2.0",
+    appVersion: "3.2.1",
     data: clean,
   };
   if (jsonSize(backup) > MAX_BACKUP_BYTES)
