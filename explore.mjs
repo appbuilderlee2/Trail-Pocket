@@ -18,6 +18,7 @@ import {
 import { buildOfflinePackage } from "./offline-package.mjs";
 import { searchOffline } from "./offline-search.mjs";
 import { createIntegrityManifest, verifyOfflineRecord } from "./reliability-core.mjs";
+import { OFFLINE_REGIONS, filterRegions } from "./offline-regions.mjs";
 
 export function setupExplore(ctx) {
   const $ = (id) => document.getElementById(id),
@@ -74,6 +75,7 @@ export function setupExplore(ctx) {
       "afterend",
       '<section class="area-library"><div class="row"><h2>我的離線區域</h2><button id="chooseFromOffline">＋ 地圖選區</button></div><div id="areaList"></div><p id="areaEmpty">未有獨立區域。毋須 GPX／KML，可直接喺地圖揀位置下載。</p></section><h2>路線附近底圖</h2>',
     );
+  $("offlineView").insertAdjacentHTML("afterbegin", `<section class="region-library"><div class="region-title"><div><button id="regionBack" aria-label="返回">‹</button><h2>南澳大利亞州</h2></div><button id="regionCustom">自訂範圍</button></div><label class="region-search"><span>⌕</span><input id="regionSearch" type="search" placeholder="搜尋地區或路線" aria-label="搜尋離線地區包"></label><div id="regionList" class="region-list"></div><p class="fineprint">地區包是適合手機下載的行山範圍；多個已下載地區會自動拼合。整個州級預製地圖需要日後 PMTiles 版本。</p></section>`);
   document.body.insertAdjacentHTML(
     "beforeend",
     `<dialog id="jumpDialog"><h2>搜尋及選擇地圖位置</h2><p>優先搜尋已下載地圖，完全離線及不傳送關鍵字。需要其他地區時才按網上搜尋。</p><label for="placeSearch">地名、山峰或設施</label><input id="placeSearch" maxlength="120" autocomplete="off" placeholder="例如 Morialta、Toilets、Mount Lofty"><div class="row jump-actions"><button id="searchPlace" class="primary">搜尋已下載地圖</button><button id="searchOnline">搜尋網上</button><button id="jumpCurrent">◎ 使用目前位置</button></div><p id="placeStatus" class="muted" role="status"></p><div id="searchResults" class="search-results"></div><details><summary>常用地區或經緯度</summary><div id="placeChoices" class="row"></div><label>緯度<input id="jumpLat" type="number" min="-85" max="85" step="any" placeholder="例如 -34.68"></label><label>經度<input id="jumpLon" type="number" min="-180" max="180" step="any" placeholder="例如 138.82"></label><button id="jumpCoordinates">前往座標並框選</button></details><p class="fineprint">本機搜尋只讀取已下載地圖。按「搜尋網上」先會把文字傳送至 OpenStreetMap Nominatim；GPS 位置不會放入搜尋。新下載範圍會把矩形座標傳送至 Overpass。</p><button id="closeJump" class="primary">關閉</button></dialog>`,
@@ -464,6 +466,7 @@ export function setupExplore(ctx) {
     routeMaps = await store.listMapMeta();
     loadedKey = null;
     renderAreas();
+    renderRegions();
     await loadVisible();
     status();
   }
@@ -557,7 +560,7 @@ export function setupExplore(ctx) {
     }
     $("saveArea").disabled = !valid || Boolean(job) || !navigator.onLine;
   }
-  function startSelection(suggestedName = "") {
+  function startSelection(suggestedName = "", presetBounds = null) {
     if (job) {
       ctx.toast("請先等目前區域下載完成，或取消下載。");
       return;
@@ -574,8 +577,9 @@ export function setupExplore(ctx) {
     ctx.nav("map");
     map.resize();
     selecting = true;
-    lockedBounds = null;
-    if (areaKm2(map.viewBounds(0.15)) > 150)
+    lockedBounds = presetBounds ? structuredClone(presetBounds) : null;
+    if (presetBounds) map.fitBounds(presetBounds);
+    else if (areaKm2(map.viewBounds(0.15)) > 150)
       map.zoom(Math.sqrt(120 / areaKm2(map.viewBounds(0.15))));
     $("areaControls").classList.remove("hide");
     $("areaFrame").classList.remove("hide");
@@ -588,6 +592,9 @@ export function setupExplore(ctx) {
   }
   $("selectArea").onclick = $("chooseFromOffline").onclick = () =>
     startSelection();
+  $("regionCustom").onclick = () => startSelection();
+  $("regionBack").onclick = () => ctx.nav("routes");
+  $("regionSearch").oninput = () => renderRegions();
   function cancelSelection() {
     if (job) return;
     selecting = false;
@@ -612,7 +619,7 @@ export function setupExplore(ctx) {
     }
     let bounds, name;
     try {
-      bounds = structuredClone(map.viewBounds(0.15));
+      bounds = structuredClone(lockedBounds || map.viewBounds(0.15));
       validateArea(bounds);
       name = $("areaName").value.trim();
       if (!name) throw Error("請為離線區域命名。");
@@ -760,6 +767,31 @@ export function setupExplore(ctx) {
       card.append(row);
       $("areaList").append(card);
     }
+  }
+  function renderRegions() {
+    const list = $("regionList"),
+      regions = filterRegions(OFFLINE_REGIONS, $("regionSearch").value);
+    list.replaceChildren();
+    for (const region of regions) {
+      const saved = areas.find((a) => contains(a.bounds, region.bounds)),
+        row = el("article", undefined, "region-row"),
+        icon = el("span", saved ? "✓" : "↓", `region-state${saved ? " saved" : ""}`),
+        text = el("div"),
+        meta = el("span", saved ? ctx.formatSize(saved.size) : `約 ${areaKm2(region.bounds).toFixed(0)} km²`),
+        action = button(saved ? "開啟" : "下載", () => {
+          if (saved) {
+            ctx.nav("map");
+            mode = "offline";
+            map.fitBounds(region.bounds);
+            loadedKey = null;
+            saveSourceSettings().then(syncMode).catch((e) => ctx.toast(ctx.failure(e)));
+          } else startSelection(region.name, region.bounds);
+        });
+      text.append(el("h3", region.name), el("p", region.places));
+      row.append(icon, text, meta, action);
+      list.append(row);
+    }
+    if (!regions.length) list.append(el("p", "找不到符合的地區包。", "muted"));
   }
   async function init() {
     ready = true;

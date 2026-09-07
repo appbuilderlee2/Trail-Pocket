@@ -1,4 +1,10 @@
-# Trail Pocket PWA v3.6.0
+# Trail Pocket PWA v3.7.0
+
+## v3.7.0 Suggested regional downloads
+
+- Adds a searchable South Australia hiking-region list with download, installed and size states.
+- Includes Para Wirra, Belair, Morialta, Alligator Gorge, Cleland and Onkaparinga presets.
+- Opens every preset as a reviewable fixed map selection before downloading.
 
 ## v3.6.0 Faster combined offline maps
 

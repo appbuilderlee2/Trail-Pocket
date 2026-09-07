@@ -1,6 +1,6 @@
 const PREFIX =
   "trail-pocket-shell:" + new URL(self.registration.scope).pathname + ":";
-const VERSION = PREFIX + "v3.6.0";
+const VERSION = PREFIX + "v3.7.0";
 const ASSETS = [
   "./unified-ui.mjs",
   "./unified-ui.css",
@@ -12,6 +12,7 @@ const ASSETS = [
   "./wake-lock.mjs",
   "./offline-download.mjs",
   "./offline-search.mjs",
+  "./offline-regions.mjs",
   "./routing-core.mjs",
   "./routing-client.mjs",
   "./route-worker.mjs",
