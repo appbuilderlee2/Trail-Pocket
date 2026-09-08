@@ -1,7 +1,7 @@
 import { setupUnifiedUI as setupBaseUnifiedUI } from './unified-ui-base.mjs';
 import { OFFLINE_REGIONS } from './offline-regions.mjs';
 
-const APP_VERSION='4.1.3';
+const APP_VERSION='4.1.4';
 const dispatchPreview=(bounds,label)=>window.dispatchEvent(new CustomEvent('trail:preview-bounds',{detail:{bounds,label}}));
 
 function syncVisibleVersion(){
