@@ -41,7 +41,7 @@ test('interrupted package resumes from exact partial offset',async()=>{
   await assert.rejects(downloadPackage(manifest(contents),{files,catalog:cat,fetcher:rangeFetcher(contents),chunkSize:4,skipStorageCheck:true,signal:controller.signal,onProgress:()=>controller.abort()}),/aborted|暫停/i);
   assert.equal(cat.records.get('downloads:para-wirra').state,'paused');
   let firstRange=''; const base=rangeFetcher(contents);
-  const fetcher=async(url,opts)=>{if(!firstRange)firstRange=opts.headers.Range;return base(url,opts)};
+  const fetcher=async(url,opts)=>{if(!firstRange)firstRange=opts.headers.Range;assert.equal(opts.headers.Accept,'application/octet-stream');return base(url,opts)};
   await downloadPackage(manifest(contents),{files,catalog:cat,fetcher,chunkSize:4,skipStorageCheck:true});
   assert.equal(firstRange,'bytes=4-7');
 });

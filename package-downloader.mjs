@@ -38,7 +38,7 @@ export async function downloadPackage(rawManifest, {
       while (offset < entry.size) {
         if (signal?.aborted) throw signal.reason || new DOMException('已暫停下載', 'AbortError');
         const end = Math.min(entry.size - 1, offset + chunkSize - 1);
-        const response = await fetcher(entry.url, { headers: { Range: `bytes=${offset}-${end}` }, signal, cache: 'no-store' });
+        const response = await fetcher(entry.url, { headers: { Accept: 'application/octet-stream', Range: `bytes=${offset}-${end}` }, signal, cache: 'no-store' });
         if (!response.ok) throw Error(`下載失敗（HTTP ${response.status}）`);
         parseRange(response, offset, end, entry.size);
         const bytes = new Uint8Array(await response.arrayBuffer());
