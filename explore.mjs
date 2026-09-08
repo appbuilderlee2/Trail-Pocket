@@ -522,7 +522,7 @@ export function setupExplore(ctx) {
         (mode === "auto" && (records.length > 0 || vectorPackages.length > 0)),
       pdf = geoOverlay ? selectedPdf() : null,
       key =
-        (useOffline ? "offline:" : "online:") +
+        `${useOffline ? "offline" : "online"}:view:${ctx.getView()}:` +
         records
           .map((m) => m.store + ":" + m.id + ":" + m.downloaded)
           .join("|") +
