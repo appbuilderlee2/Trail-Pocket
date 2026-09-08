@@ -16,6 +16,23 @@ export function openPackageCatalog(factory = indexedDB, scope = new URL('./', im
   });
 }
 
+function requestResult(request) {
+  return new Promise((resolve, reject) => {
+    request.onsuccess = () => resolve(request.result);
+    request.onerror = () => reject(request.error);
+  });
+}
+
+export function packageCatalog(db) {
+  const store = (name, mode = 'readonly') => db.transaction(name, mode).objectStore(name);
+  return {
+    get: (name, id) => requestResult(store(name).get(id)),
+    list: (name) => requestResult(store(name).getAll()),
+    put: (name, value) => requestResult(store(name, 'readwrite').put(value)),
+    remove: (name, id) => requestResult(store(name, 'readwrite').delete(id)),
+  };
+}
+
 function safeName(name) {
   if (typeof name !== 'string' || !/^[a-zA-Z0-9][a-zA-Z0-9._-]{0,159}$/.test(name))
     throw Error('地圖檔案名稱無效');
@@ -29,12 +46,26 @@ export async function openPackageFiles(storage = navigator.storage) {
   const root = await storage.getDirectory();
   const directory = await root.getDirectoryHandle('trail-pocket-v4', { create: true });
   return {
+    async stat(name) {
+      safeName(name);
+      try {
+        const file = await (await directory.getFileHandle(name)).getFile();
+        return { name, size: file.size, lastModified: file.lastModified };
+      } catch (error) {
+        if (error?.name === 'NotFoundError') return null;
+        throw error;
+      }
+    },
     async read(name, offset = 0, length) {
       safeName(name);
       if (!Number.isSafeInteger(offset) || offset < 0 || (length !== undefined && (!Number.isSafeInteger(length) || length < 0)))
         throw Error('讀取範圍無效');
       const file = await (await directory.getFileHandle(name)).getFile();
       return file.slice(offset, length === undefined ? file.size : offset + length).arrayBuffer();
+    },
+    async getFile(name) {
+      safeName(name);
+      return (await directory.getFileHandle(name)).getFile();
     },
     async append(name, expectedOffset, bytes) {
       safeName(name);
@@ -53,6 +84,10 @@ export async function openPackageFiles(storage = navigator.storage) {
         throw error;
       }
       return expectedOffset + bytes.byteLength;
+    },
+    async remove(name) {
+      safeName(name);
+      await directory.removeEntry(name);
     },
   };
 }

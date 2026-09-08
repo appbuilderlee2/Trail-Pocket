@@ -1,0 +1,2 @@
+import test from 'node:test';import assert from 'node:assert/strict';import {mergePackageGraphs} from '../package-routing.mjs';import {routeAStar} from '../routing-core.mjs';
+test('adjacent package graphs join at rounded boundary nodes',()=>{const a={version:1,nodes:[[138,-35],[138.1,-35]],edges:[[0,1,100],[1,0,100]]},b={version:1,nodes:[[138.100001,-35],[138.2,-35]],edges:[[0,1,100],[1,0,100]]},graph=mergePackageGraphs([a,b]),route=routeAStar(graph,[138,-35],[138.2,-35],{maxSnap:1000});assert.equal(graph.nodes.length,3);assert.equal(route.distance,200);});

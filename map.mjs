@@ -156,6 +156,7 @@ export class TrailMap {
     this.c.width = this.w * d;
     this.c.height = this.h * d;
     this.ctx.setTransform(d, 0, 0, d, 0, 0);
+    this.vector?.resize();
     this.draw();
   }
   setLayers(layers) {
@@ -628,11 +629,15 @@ export class TrailMap {
       ...this.layers,
     };
     c.clearRect(0, 0, this.w, this.h);
-    c.fillStyle = "#f0f0e8";
-    c.fillRect(0, 0, this.w, this.h);
+    const vector = Boolean(this.vector?.enabled);
+    if (vector) this.vector.sync(this.center, this.units);
+    else {
+      c.fillStyle = "#f0f0e8";
+      c.fillRect(0, 0, this.w, this.h);
+    }
     c.lineCap = "round";
     c.lineJoin = "round";
-    const raster = this.online?.draw(
+    const raster = vector || this.online?.draw(
         c,
         this.center,
         this.units,

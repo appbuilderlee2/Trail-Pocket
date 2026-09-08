@@ -35,8 +35,8 @@ export function setupAdventure(ctx){
   async function saveAlerts(){alertSettings={enabled:$('alertsEnabled').checked,threshold:Number($('alertThreshold').value),sound:$('alertSound').checked};deviation={armed:false};$('deviationBanner').classList.add('hide');if(alertSettings.sound)await unlockAudio();try{await store.put('settings',{id:'alerts',value:alertSettings});if(alertSettings.enabled)ctx.toast('提醒已開啟；到達路線 300 m 範圍後先會開始偏航監察。');}catch(e){warn(e);}}
   $('alertsEnabled').onchange=$('alertThreshold').onchange=$('alertSound').onchange=saveAlerts;
   $('testAlert').onclick=async()=>{if(await unlockAudio()){beep();ctx.toast('提示聲已測試；請檢查音量。');}};
-  function routeDownloaded(start,end){
-    const record=chooseRoutingRecord(map.getOfflineRecords(),start,end);if(!record)return Promise.reject(Error('起點及終點不在同一個已下載步道路網內。'));
+  async function routeDownloaded(start,end){
+    const record=chooseRoutingRecord(map.getOfflineRecords(),start,end)||await ctx.getPackageGraph?.(start,end);if(!record)throw Error('起點及終點不在同一個已下載步道路網內。');
     if(!routeWorker){routeWorker=new Worker(new URL('./route-worker.mjs',import.meta.url),{type:'module'});routeWorker.onmessage=e=>{const job=workerJobs.get(e.data?.id);if(!job)return;workerJobs.delete(e.data.id);e.data.ok?job.resolve(e.data.result):job.reject(Error(e.data.error));};routeWorker.onerror=()=>{for(const job of workerJobs.values())job.reject(Error('離線路線運算器發生錯誤。'));workerJobs.clear();loadedGraphs.clear();routeWorker.terminate();routeWorker=null;};}
     const id=++workerSerial,graphId=(record.id||'map')+':'+(record.downloaded||0),payload={id,graphId,start,end};if(!loadedGraphs.has(graphId)){payload.graph=record.routingGraph;loadedGraphs.add(graphId);}return new Promise((resolve,reject)=>{workerJobs.set(id,{resolve,reject});routeWorker.postMessage(payload);});
   }
