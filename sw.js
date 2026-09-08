@@ -1,6 +1,6 @@
 const PREFIX =
   "trail-pocket-shell:" + new URL(self.registration.scope).pathname + ":";
-const VERSION = PREFIX + "v3.8.0";
+const VERSION = PREFIX + "v4.0.0-beta.1";
 const ASSETS = [
   "./unified-ui.mjs",
   "./unified-ui.css",
@@ -9,6 +9,19 @@ const ASSETS = [
   "./markers.mjs",
   "./hiking-ui.css",
   "./backup.mjs",
+  "./package-storage.mjs",
+  "./package-manifest.mjs",
+  "./package-downloader.mjs",
+  "./package-manager.mjs",
+  "./package-manager.css",
+  "./package-manager-controls.css",
+  "./package-search.mjs",
+  "./package-routing.mjs",
+  "./sha256.mjs",
+  "./vector-map.mjs",
+  "./vector-map.css",
+  "./outdoor-style.mjs",
+  "./pmtiles-opfs.mjs",
   "./wake-lock.mjs",
   "./offline-download.mjs",
   "./offline-search.mjs",
@@ -29,6 +42,11 @@ const ASSETS = [
   "./vendor/pdf-lib.min.mjs",
   "./vendor/pdf.min.mjs",
   "./vendor/pdf.worker.min.mjs",
+  "./vendor/maplibre-gl.mjs",
+  "./vendor/maplibre-gl-shared.mjs",
+  "./vendor/maplibre-gl-worker.mjs",
+  "./vendor/maplibre-gl.css",
+  "./vendor/pmtiles.js",
   "./",
   "./index.html",
   "./style.css",

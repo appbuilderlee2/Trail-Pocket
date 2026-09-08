@@ -37,6 +37,7 @@ import {
   gpsAltitude,
 } from "./reliability-core.mjs";
 import { setupMarkers } from "./markers.mjs";
+import { setupPackageManager } from "./package-manager.mjs";
 const $ = (id) => document.getElementById(id),
   BASE = new URL("./", import.meta.url),
   jobs = new Map(),
@@ -863,9 +864,10 @@ async function offlineAudit() {
       ...(await store.getAll("areas")),
     ];
     const geoPdfs = await store.getAll("geopdfs");
+    const packageAudit = await packageManager.audit();
     if (!shellReady)
       throw Error("App 離線外殼未完整，請保持連線重新開啟一次。");
-    if (!records.length && !geoPdfs.length)
+    if (!records.length && !geoPdfs.length && !packageAudit.checked)
       throw Error("未有離線地圖，請先下載需要範圍。");
     const bad = [];
     for (const record of records) {
@@ -894,6 +896,7 @@ async function offlineAudit() {
       if (!item.imageData || !item.transform?.matrix || !item.transform?.bounds)
         bad.push(item.name || "未命名 GeoPDF");
     }
+    bad.push(...packageAudit.bad);
     if (bad.length)
       throw Error(
         "以下地圖不完整或屬舊版，請重新下載：" +
@@ -902,7 +905,7 @@ async function offlineAudit() {
       );
     $("shellIcon").textContent = "✓";
     $("shellStatus").textContent =
-      `離線自檢通過 · ${records.length + geoPdfs.length} 張完整地圖`;
+      `離線自檢通過 · ${records.length + geoPdfs.length + packageAudit.checked} 張完整地圖`;
     $("storageInfo").textContent =
       "已讀回完整圖層、GeoPDF、搜尋索引及步道路網；已選擇的等高線亦已核對。仍請開飛行模式重開測試。";
     toast("離線自檢通過。出發前最後用飛行模式重開一次。");
@@ -918,7 +921,7 @@ async function downloadBackup() {
   if (!storeOK) return toast("本機儲存未就緒。");
   $("backupAll").disabled = true;
   try {
-    const backup = createBackup(await store.exportAll()),
+    const backup = createBackup(await store.exportAll(), Date.now(), {packages:packageManager.listInstalled(),includeGeoPdfs:$('backupGeoPdfs').checked}),
       blob = new Blob([JSON.stringify(backup)], { type: "application/json" }),
       url = URL.createObjectURL(blob),
       a = node("a");
@@ -929,7 +932,7 @@ async function downloadBackup() {
     a.remove();
     setTimeout(() => URL.revokeObjectURL(url), 60000);
     toast(
-      "完整備份已建立（" + formatSize(blob.size) + "），請儲存到安全位置。",
+      "個人資料備份已建立（" + formatSize(blob.size) + "）。官方南澳地圖包可按清單重新下載。",
     );
   } catch (e) {
     toast(failure(e));
@@ -951,7 +954,7 @@ async function restoreBackup(file) {
     await refresh();
     await geoPdf.refresh();
     await markers.refresh();
-    toast("備份已還原。請再做離線自檢及飛行模式測試。");
+    toast("備份已還原。" + (backup.offline?.packages?.length ? `另有 ${backup.offline.packages.length} 個官方地圖包需要重新下載。` : "") + " 請再做離線自檢及飛行模式測試。");
   } catch (e) {
     toast(failure(e));
   } finally {
@@ -1138,6 +1141,7 @@ const adventure = setupAdventure({
   },
   showMap: () => nav("map"),
   showRoutes: () => nav("routes"),
+  getPackageGraph: (start,end) => packageManager.routingGraph(start,end),
 });
 const activity = setupActivity({
   map,
@@ -1154,6 +1158,7 @@ const activity = setupActivity({
   toast,
   failure,
 });
+const packageManager = setupPackageManager({ask,toast,failure,changed:()=>explore.refresh()});
 const explore = setupExplore({
   map,
   nav,
@@ -1172,6 +1177,7 @@ const explore = setupExplore({
   storageInfo,
   getGeoPdf: () => geoPdf,
   includeTerrain: () => $("downloadContours").checked,
+  getPackages: () => packageManager,
 });
 const markers = setupMarkers({
   map,
@@ -1216,6 +1222,7 @@ async function boot() {
   try {
     await store.openStore();
     storeOK = true;
+    await packageManager.init();
     $("downloadContours").checked = (await store.get("settings", "download-contours"))?.value === true;
     await refresh();
     await adventure.init();

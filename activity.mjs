@@ -356,6 +356,7 @@ export function setupActivity(ctx) {
     viewed = a;
     $("savedActivityName").textContent = a.name;
     const m = metrics(a);
+    const gps=a.gpsStats, accepted=gps?.accepted||0;
     $("savedActivityDetails").replaceChildren(
       el(
         "p",
@@ -366,6 +367,7 @@ export function setupActivity(ctx) {
         `累計爬升 ${m.ascent === null ? "—" : Math.round(m.ascent) + " m"} · 平均配速 ${m.pace === null ? "—" : clock(m.pace * 1000) + "/km"}`,
       ),
       ...(a.gpsGapSeconds ? [el("p", `GPS 曾中斷 ${a.gpsGapCount || 1} 次、約 ${a.gpsGapSeconds} 秒；中斷期間沒有估算或補畫距離。`, "position-warning")] : []),
+      ...(gps ? [el("p", `GPS 診斷：收到 ${gps.received} 點、接受 ${accepted} 點、精度不足 ${gps.poor} 點、漂移 ${gps.drift} 點、跳點 ${gps.jumps} 點${accepted ? `、平均水平精度 ±${Math.round(gps.accuracyTotal/accepted)} m` : ""}。`, "muted")] : []),
     );
     profile(a, $("savedActivityProfile"));
     $("exportActivity").disabled = !a.segments.some((s) => s.length > 1);

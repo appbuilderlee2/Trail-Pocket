@@ -17,6 +17,10 @@
     <link rel="stylesheet" href="./activity.css" />
     <link rel="stylesheet" href="./geopdf.css" />
     <link rel="stylesheet" href="./map-source.css" />
+    <link rel="stylesheet" href="./vendor/maplibre-gl.css" />
+    <link rel="stylesheet" href="./vector-map.css" />
+    <link rel="stylesheet" href="./package-manager.css" />
+    <link rel="stylesheet" href="./package-manager-controls.css" />
     <title>Trail Pocket · 離線行山地圖</title>
     <link rel="stylesheet" href="./hiking-ui.css">
   <link rel="stylesheet" href="./unified-ui.css">
@@ -25,7 +29,7 @@
     <header>
       <div><b>TRAIL POCKET</b><small>帶住路線，離線出發</small></div>
       <div class="header-status">
-        <span class="version">v3.8.0</span
+        <span class="version">v4.0.0-beta.1</span
         ><span id="network" class="chip">檢查連線</span>
       </div>
     </header>
@@ -66,7 +70,7 @@
           </div>
           <button id="mapOptions" class="icon" aria-label="路線資料">ⓘ</button>
         </div>
-        <div class="map-wrap"><div id="mapPositionStatus" class="position-status">GPS 未開啟 · 方向未確認</div>
+        <div class="map-wrap"><div id="vectorMap" class="vector-map hide" aria-hidden="true"></div><div id="mapPositionStatus" class="position-status">GPS 未開啟 · 方向未確認</div>
           <canvas id="map" aria-label="路線及離線底圖"></canvas>
           <div id="mapBadge" class="map-badge"></div>
           <div class="map-buttons">
@@ -122,7 +126,7 @@
         </p>
       </section>
       <section id="settingsView" class="view hide">
-        <div class="eyebrow">TRAIL POCKET · V3.8.0</div>
+        <div class="eyebrow">TRAIL POCKET · V4.0.0 BETA 1</div>
         <h1>設定</h1>
         <p class="settings-intro">定位、地圖、安全提醒、離線檢查及使用說明集中在這裏。</p>
 
@@ -162,6 +166,7 @@
         <section class="settings-card settings-storage">
           <h2>離線與本機資料</h2>
           <label class="settings-switch"><span><b>下載時加入 20 m 等高線</b><small>關閉可大幅縮短下載時間；OSM 圖層、離線搜尋及步道路網仍會完整保留。</small></span><input id="downloadContours" type="checkbox"></label>
+          <label class="settings-switch"><span><b>備份時包括 GeoPDF</b><small>個人路線、活動及標記一定會備份；官方南澳地圖包只保存重新下載清單，不會塞入 JSON。</small></span><input id="backupGeoPdfs" type="checkbox" checked></label>
           <div class="storage-card">
             <div><span id="shellIcon">○</span><strong id="shellStatus">檢查 App 離線狀態…</strong><small id="storageInfo"></small></div>
             <div class="storage-actions">
@@ -268,6 +273,7 @@
           "呢個係 PWA 程式套件。請先部署到 HTTPS 網址，再用 Safari 加入主畫面；直接開啟本機檔案唔能夠安裝或儲存離線地圖。";
       }
     </script>
+    <script src="./vendor/pmtiles.js"></script>
     <script type="module" src="./app.mjs"></script>
   </body>
 </html>

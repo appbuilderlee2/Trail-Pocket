@@ -1,5 +1,18 @@
 # Trail Pocket PWA v3.8.0
 
+## v4.0 beta development
+
+The stable GitHub Pages root remains v3.8.0. The isolated v4 preview is built
+from `development/v4.0` at `/Trail-Pocket/v4-preview/`, with its own Service
+Worker scope and IndexedDB/OPFS package catalog.
+
+The beta introduces MapLibre with OpenFreeMap online vectors, OPFS-backed
+PMTiles, resumable range downloads, SHA-256 verification and repair, backup
+format v2, a South Australia seven-region catalog, cross-package search and
+walking-graph merging, and GPS acceptance/filter diagnostics. It must not be
+promoted to v4.0 until the Para Wirra production package, flight-mode restart,
+download interruption, and a real iPhone 1–2 km comparison walk have passed.
+
 ## v3.8.0 GPS continuity and elevation
 
 - Current GPS altitude appears only when iOS supplies usable vertical accuracy.

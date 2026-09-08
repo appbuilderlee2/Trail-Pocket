@@ -7,6 +7,7 @@ import {
   parsePlaceResults,
 } from "./explore-core.mjs";
 import { OnlineMap } from "./online-map.mjs";
+import { VectorBaseMap } from "./vector-map.mjs";
 import * as store from "./storage.mjs";
 import { downloadContours } from "./terrain.mjs";
 import {
@@ -162,13 +163,15 @@ export function setupExplore(ctx) {
         indexes = records
           .filter((r) => Array.isArray(r.searchIndex))
           .map((r) => ({ name: r.name || "路線底圖", index: r.searchIndex })),
-        results = searchOffline(
+        legacyResults = searchOffline(
           indexes,
           $("placeSearch").value,
           map.centerPoint(),
-        );
+        ),
+        packageResults = await ctx.getPackages?.()?.search($("placeSearch").value,map.centerPoint()) || [],
+        results = [...packageResults,...legacyResults].slice(0,30);
       renderSearch(results, true);
-      if (!indexes.length)
+      if (!indexes.length && !packageResults.length)
         $("placeStatus").textContent =
           "已下載地圖屬舊版或未有搜尋索引，請重新下載。";
     } catch (e) {
@@ -280,6 +283,14 @@ export function setupExplore(ctx) {
       status();
     },
   );
+  map.vector = new VectorBaseMap($("vectorMap"), (s) => {
+    tileState = s;
+    if (s.failed && !map.vector?.supported && effectiveMode === "online") {
+      map.online.setEnabled(navigator.onLine);
+      map.draw();
+    }
+    status();
+  });
   map.onViewChange = () => {
     updateSelection();
     clearTimeout(timer);
@@ -477,6 +488,7 @@ export function setupExplore(ctx) {
     if (mode === "geopdf") {
       effectiveMode = "geopdf";
       map.online.setEnabled(false);
+      map.vector.setEnabled(false);
       const pdf = selectedPdf();
       if (!pdf) {
         mode = "auto";
@@ -502,29 +514,34 @@ export function setupExplore(ctx) {
       records = [
         ...areas.map((a) => ({ ...a, store: "areas" })),
         ...routeMaps.map((a) => ({ ...a, store: "maps" })),
-      ].filter((m) => overlaps(m.bounds, b));
+      ].filter((m) => overlaps(m.bounds, b)),
+      vectorPackages = ctx.getPackages?.()?.covering(b) || [];
     const useOffline =
         mode === "offline" ||
         !navigator.onLine ||
-        (mode === "auto" && records.length > 0),
+        (mode === "auto" && (records.length > 0 || vectorPackages.length > 0)),
       pdf = geoOverlay ? selectedPdf() : null,
       key =
         (useOffline ? "offline:" : "online:") +
         records
           .map((m) => m.store + ":" + m.id + ":" + m.downloaded)
           .join("|") +
+        vectorPackages.map(m => `:pmtiles:${m.id}:${m.version}`).join("") +
         (pdf ? `:pdf:${pdf.id}:${geoOpacity}` : "");
     if (key === loadedKey) return;
     effectiveMode = useOffline ? "offline" : "online";
-    map.online.setEnabled(
-      !useOffline && navigator.onLine && ctx.getView() === "map",
-    );
+    const wantsOnline = !useOffline && navigator.onLine && ctx.getView() === "map";
+    let vectorEnabled = false;
+    if (wantsOnline) vectorEnabled = map.vector.setEnabled(true);
+    else if (vectorPackages.length) vectorEnabled = await map.vector.setOfflinePackages(vectorPackages, ctx.getPackages().files());
+    else map.vector.setEnabled(false);
+    map.online.setEnabled(wantsOnline && !vectorEnabled);
     if (useOffline) {
       const data = await Promise.all(
         records.map((m) => store.get(m.store, m.id)),
       );
       if (current !== serial) return;
-      map.setRegions(data.filter(Boolean));
+      map.setRegions(vectorEnabled ? [] : data.filter(Boolean));
     } else map.setRegions([]);
     if (pdf)
       await api.open(pdf.id, {
@@ -836,7 +853,7 @@ export function setupExplore(ctx) {
     viewChanged,
     geoPdfChanged,
     isSelecting: () => selecting,
-    coverageRecords: () => [...areas, ...routeMaps],
+    coverageRecords: () => [...areas, ...routeMaps, ...(ctx.getPackages?.()?.listInstalled() || []).map(item=>({id:item.id,bounds:{west:item.bounds[0],south:item.bounds[1],east:item.bounds[2],north:item.bounds[3]}}))],
     usesOffline: () => effectiveMode === "offline" || mode === "geopdf",
   };
 }
