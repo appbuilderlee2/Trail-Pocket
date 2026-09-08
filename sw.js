@@ -1,4 +1,4 @@
-const APP_VERSION = "4.1.5";
+const APP_VERSION = "4.1.6";
 const PREFIX =
   "trail-pocket-shell:" + new URL(self.registration.scope).pathname + ":";
 const VERSION = PREFIX + "v" + APP_VERSION;
@@ -75,16 +75,75 @@ const ASSETS = [
   "./assets/devils-base.json",
 ];
 
+function runtimeGuardScript() {
+  return `<script id="trailRuntimeGuard">
+  (() => {
+    const VERSION=${JSON.stringify(APP_VERSION)};
+    const root=document.documentElement;
+    const installFallbackNav=()=>{
+      if(window.__trailPocketFallbackNav)return;
+      window.__trailPocketFallbackNav=true;
+      const show=(name,tab)=>{
+        for(const n of ['routes','map','offline','history','markers','settings']){
+          const el=document.getElementById(n+'View');
+          if(el)el.classList.toggle('hide',n!==name);
+        }
+        document.querySelectorAll('body>nav button').forEach(b=>b.classList.toggle('active',b.dataset.tab===tab));
+        window.scrollTo({top:0});
+      };
+      document.querySelectorAll('body>nav button').forEach(b=>{
+        b.addEventListener('click',event=>{
+          if(root.dataset.trailBootError!=='1')return;
+          event.preventDefault();event.stopImmediatePropagation();
+          const name=b.dataset.view||'routes',tab=b.dataset.tab||name;
+          show(name,tab);
+        },true);
+      });
+    };
+    const describe=value=>{
+      if(value instanceof Error)return value.name+': '+value.message+(value.stack?' | '+String(value.stack).split('\\n').slice(0,3).join(' → '):'');
+      if(value&&typeof value==='object'&&value.message)return String(value.message);
+      return String(value||'未知錯誤');
+    };
+    const report=(title,value)=>{
+      root.dataset.trailBootError='1';
+      installFallbackNav();
+      const detail=describe(value);
+      try{localStorage.setItem('trail-pocket-last-error',title+' | '+detail);}catch{}
+      const banner=document.getElementById('banner');
+      const version=document.querySelector('.header-status .version');
+      if(version)version.textContent='v'+VERSION;
+      if(!banner)return;
+      banner.classList.remove('hide');
+      banner.replaceChildren();
+      const strong=document.createElement('strong');strong.textContent=title+'：';
+      const text=document.createTextNode(' '+detail+' ');
+      const link=document.createElement('a');link.href='./repair.html?t='+Date.now();link.textContent='強制修復 App';link.style.fontWeight='700';
+      banner.append(strong,text,link);
+    };
+    if(typeof ResizeObserver==='undefined'){
+      window.ResizeObserver=class{constructor(callback){this.callback=callback;}observe(){try{this.callback([]);}catch{}}unobserve(){}disconnect(){}};
+    }
+    window.addEventListener('error',event=>report('JavaScript 錯誤',event.error||event.message),true);
+    window.addEventListener('unhandledrejection',event=>report('未處理程式錯誤',event.reason),true);
+    setTimeout(()=>{
+      const unified=document.getElementById('libraryHeader');
+      if(!unified){
+        report('App UI 初始化未完成',new Error('核心畫面未完成啟動；底部頁面切換已暫時恢復。'));
+      }
+    },4500);
+  })();
+  </script>`;
+}
+
 function safeBootHtml(response) {
   if (!response) return response;
   const type = response.headers.get("content-type") || "";
   if (!type.includes("text/html")) return response;
   return response.text().then((source) => {
     let html = source
-      .replaceAll("v4.1.1", "v" + APP_VERSION)
-      .replaceAll("V4.1.1", "V" + APP_VERSION)
-      .replaceAll("v4.1.0", "v" + APP_VERSION)
-      .replaceAll("V4.1.0", "V" + APP_VERSION);
+      .replace(/v4\.1\.\d+(?:-[\w.]+)?/g, "v" + APP_VERSION)
+      .replace(/V4\.1\.\d+(?:-[\w.]+)?/g, "V" + APP_VERSION);
     const normal = '<script type="module" src="./app.mjs"></script>';
     const safe = `<script type="module">
       import('./app.mjs?v=${APP_VERSION}').catch((error) => {
@@ -92,6 +151,7 @@ function safeBootHtml(response) {
         const banner = document.getElementById('banner');
         const version = document.querySelector('.header-status .version');
         if (version) version.textContent = 'v${APP_VERSION}';
+        document.documentElement.dataset.trailBootError='1';
         if (banner) {
           banner.classList.remove('hide');
           banner.textContent = 'App 啟動失敗：' + (error?.message || '主程式未能載入') + '。';
@@ -105,6 +165,7 @@ function safeBootHtml(response) {
       });
     </script>`;
     html = html.includes(normal) ? html.replace(normal, safe) : html;
+    if (!html.includes('id="trailRuntimeGuard"')) html = html.replace("</body>", runtimeGuardScript() + "</body>");
     const headers = new Headers(response.headers);
     headers.delete("content-length");
     headers.set("cache-control", "no-cache");
