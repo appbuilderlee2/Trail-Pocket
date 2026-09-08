@@ -6,6 +6,7 @@ import { mergePackageGraphs } from './package-routing.mjs';
 import { sha256File } from './sha256.mjs';
 
 const INDEX_URLS = [
+  './config/sa-index.json',
   'https://github.com/appbuilderlee2/Trail-Pocket/releases/download/maps-v4-current/sa-index.json',
   'https://github.com/appbuilderlee2/Trail-Pocket/releases/download/maps-v4-pilot/sa-index.json',
 ];
@@ -74,7 +75,20 @@ export function setupPackageManager(ctx) {
     render();
     if(navigator.onLine&&catalog)updateIndex().catch(()=>{});
   }
-  async function updateIndex(){const controller=new AbortController(),timer=setTimeout(()=>controller.abort(),10000);try{let response;for(const url of INDEX_URLS){response=await fetch(url,{cache:'no-store',signal:controller.signal});if(response.ok)break;}if(!response?.ok)return;const index=await response.json();if(index.schema!==1||!Array.isArray(index.packages))throw Error('地圖包目錄格式無效');for(const item of index.packages){const manifest=validatePackageManifest(item);manifests.set(manifest.id,manifest);await catalog.put('manifests',manifest);}render();}finally{clearTimeout(timer);}}
+  async function updateIndex(){
+    for(const url of INDEX_URLS){
+      const controller=new AbortController(),timer=setTimeout(()=>controller.abort(),url.startsWith('.')?4000:10000);
+      try{
+        const response=await fetch(url,{cache:'no-store',signal:controller.signal});
+        if(!response.ok)continue;
+        const index=await response.json();
+        if(index.schema!==1||!Array.isArray(index.packages))throw Error('地圖包目錄格式無效');
+        for(const item of index.packages){const manifest=validatePackageManifest(item);manifests.set(manifest.id,manifest);await catalog.put('manifests',manifest);}
+        render();
+      }catch(error){if(url.startsWith('.'))throw error;}
+      finally{clearTimeout(timer);}
+    }
+  }
   async function search(query,center){const sources=[];for(const item of installed.filter(x=>x.state==='ready')){const file=item.files.find(x=>x.name==='search.index');if(!file?.local)continue;let index=searchCache.get(file.local);if(!index){index=JSON.parse(new TextDecoder().decode(await files.read(file.local)));if(index.version!==1||!Array.isArray(index.entries))throw Error(`${item.name} 搜尋索引損壞`);searchCache.set(file.local,index);}sources.push({name:item.name,entries:index.entries});}return searchPackageEntries(sources,query,center);}
   async function routingGraph(start,end){const corridor={west:Math.min(start[0],end[0])-.08,east:Math.max(start[0],end[0])+.08,south:Math.min(start[1],end[1])-.08,north:Math.max(start[1],end[1])+.08},selected=installed.filter(item=>item.state==='ready'&&overlap(item.bounds,corridor));if(!selected.some(x=>start[0]>=x.bounds[0]&&start[0]<=x.bounds[2]&&start[1]>=x.bounds[1]&&start[1]<=x.bounds[3])||!selected.some(x=>end[0]>=x.bounds[0]&&end[0]<=x.bounds[2]&&end[1]>=x.bounds[1]&&end[1]<=x.bounds[3]))return null;const graphs=[];for(const item of selected){const file=item.files.find(x=>x.name==='routing.graph');if(!file?.local)continue;let graph=graphCache.get(file.local);if(!graph){graph=JSON.parse(new TextDecoder().decode(await files.read(file.local)));graphCache.set(file.local,graph);}graphs.push(graph);}return graphs.length?{id:'pmtiles:'+selected.map(x=>x.id+':'+x.version).join('|'),downloaded:selected.map(x=>x.verifiedAt).join('|'),routingGraph:mergePackageGraphs(graphs)}:null;}
   async function audit(){const bad=[];for(const item of installed.filter(x=>x.state==='ready')){try{for(const file of item.files){const stat=await files.stat(file.local);if(stat?.size!==file.size||await sha256File(files,file.local,file.size)!==file.sha256)throw Error(file.name);}}catch{bad.push(item.name||item.id);await catalog.put('packages',{...item,state:'corrupt'});await catalog.put('downloads',{id:item.id,version:item.version,state:'failed',received:0,total:item.files.reduce((n,x)=>n+x.size,0),error:'完整性驗證失敗',updatedAt:Date.now()});}}if(bad.length){installed=await catalog.list('packages');downloads=await catalog.list('downloads');render();}return {checked:installed.filter(x=>x.state==='ready').length+bad.length,bad};}

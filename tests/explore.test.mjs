@@ -256,6 +256,7 @@ test("all new static modules deploy and precache, online tiles are not precached
     "terrain.mjs",
     "explore.css",
     "map-source.css",
+    "config/sa-index.json",
   ]) {
     assert.ok(
       sw.includes("'./" + asset + "'") || sw.includes('"./' + asset + '"'),
@@ -263,6 +264,7 @@ test("all new static modules deploy and precache, online tiles are not precached
     assert.ok(workflow.includes(asset));
   }
   assert.equal(sw.includes("tile.openstreetmap.org"), false);
+  assert.ok(workflow.includes("config/sa-index.json"));
   const areaCode = await readFile(
     new URL("../explore.mjs", import.meta.url),
     "utf8",
