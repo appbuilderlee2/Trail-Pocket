@@ -1,3 +1,5 @@
+import './v41-enhancements.mjs';
+
 // Bearings are clockwise from north. Never infer a bearing from GPS drift.
 export const normalizeHeading = value => Number.isFinite(value) ? ((value % 360) + 360) % 360 : null;
 export function compassReading(event, screenAngle = 0, now = Date.now()) {
