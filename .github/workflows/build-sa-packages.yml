@@ -14,11 +14,11 @@ on:
       scope:
         description: Build pilot first or all seven production regions
         type: choice
-        options: [pilot, all]
-        default: pilot
+        options: [all, pilot]
+        default: all
       release_tag:
-        description: Immutable map release tag
-        default: maps-v4-pilot
+        description: Map release tag
+        default: maps-v4-current
   schedule:
     - cron: '20 3 1 * *'
 
@@ -46,7 +46,11 @@ jobs:
           node <<'NODE' >> "$GITHUB_OUTPUT"
           const fs = require('node:fs');
           const regions = JSON.parse(fs.readFileSync('config/sa-regions.json', 'utf8'));
-          const full = process.env.EVENT_NAME === 'schedule' || process.env.REQUESTED_SCOPE === 'all';
+          // Production pushes and the monthly schedule build all seven real SA regions.
+          // The Para Wirra pilot remains available for explicit manual smoke tests only.
+          const full = process.env.EVENT_NAME === 'schedule'
+            || process.env.EVENT_NAME === 'push'
+            || process.env.REQUESTED_SCOPE === 'all';
           const selected = regions.filter(region => full ? !region.pilot : region.pilot);
           const include = selected.map(region => ({
             ...region,
@@ -54,11 +58,12 @@ jobs:
             pilot: Boolean(region.pilot),
           }));
           if (!include.length) throw new Error('No South Australia package regions selected');
-          const tag = process.env.EVENT_NAME === 'schedule'
+          if (full && include.length !== 7) {
+            throw new Error(`Expected 7 production regions, got ${include.length}`);
+          }
+          const tag = process.env.EVENT_NAME === 'schedule' || process.env.EVENT_NAME === 'push'
             ? 'maps-v4-current'
-            : process.env.EVENT_NAME === 'push'
-              ? 'maps-v4-pilot'
-              : process.env.REQUESTED_TAG || 'maps-v4-pilot';
+            : process.env.REQUESTED_TAG || (full ? 'maps-v4-current' : 'maps-v4-pilot');
           console.log(`matrix=${JSON.stringify({include})}`);
           console.log(`release_tag=${tag}`);
           NODE
@@ -94,7 +99,7 @@ jobs:
         env:
           TAG: ${{ needs.prepare.outputs.release_tag }}
         run: node scripts/write-package-manifest.mjs '${{ matrix.id }}' '${{ matrix.name }}' '${{ matrix.bounds }}' "$(date -u +%Y.%m.%d)" "https://github.com/${GITHUB_REPOSITORY}/releases/download/${TAG}" '${{ matrix.id }}-manifest.json'
-      - name: Publish immutable package assets
+      - name: Publish package assets
         uses: softprops/action-gh-release@v2
         with:
           tag_name: ${{ needs.prepare.outputs.release_tag }}
@@ -116,7 +121,13 @@ jobs:
     steps:
       - uses: actions/download-artifact@v4
         with: {pattern: 'manifest-*', merge-multiple: true}
-      - run: jq -s '{schema:1,generated:(now|todate),packages:.}' ./*-manifest.json > sa-index.json
+      - run: |
+          count=$(find . -maxdepth 1 -name '*-manifest.json' | wc -l)
+          if [ "$count" -ne 7 ]; then
+            echo "Expected 7 production manifests, got $count" >&2
+            exit 1
+          fi
+          jq -s '{schema:1,generated:(now|todate),packages:.}' ./*-manifest.json > sa-index.json
       - uses: softprops/action-gh-release@v2
         with:
           tag_name: ${{ needs.prepare.outputs.release_tag }}
