@@ -31,12 +31,14 @@
   #mapView .map-buttons{top:calc(66px + env(safe-area-inset-top));right:12px;gap:10px}
   #mapView .map-buttons button,#mapView .north{width:44px;height:44px;border-radius:50%}
   #mapView .position-status{top:calc(62px + env(safe-area-inset-top));bottom:auto;left:12px;max-width:calc(100% - 82px);font-size:10px;padding:6px 9px}
-  #mapView .activity-panel:not(.is-expanded):not(.has-activity){left:12px;right:12px;bottom:calc(68px + env(safe-area-inset-bottom));width:auto;transform:none;display:grid;grid-template-columns:minmax(0,1fr) 116px;align-items:center;gap:10px;max-height:88px;min-height:82px;padding:12px 14px;border:1px solid #e8ede6;border-radius:26px;background:#fff;box-shadow:0 6px 26px #193f3220}
+  #mapView .activity-panel:not(.is-expanded){position:absolute;left:12px;right:12px;bottom:calc(112px + env(safe-area-inset-bottom));z-index:8;width:auto;margin:0;transform:none}
+  #mapView .activity-panel:not(.is-expanded):not(.has-activity){display:grid;grid-template-columns:minmax(0,1fr) 116px;align-items:center;gap:10px;max-height:88px;min-height:82px;padding:12px 14px;border:1px solid #e8ede6;border-radius:26px;background:#fff;box-shadow:0 6px 26px #193f3220}
   #mapView .activity-panel:not(.is-expanded):not(.has-activity) .activity-stats{display:grid!important;grid-template-columns:1fr 1fr;gap:4px;margin:0}
   #mapView .activity-panel:not(.is-expanded):not(.has-activity) .activity-stats>div{padding:0 5px}
   #mapView .activity-panel:not(.is-expanded):not(.has-activity) .activity-stats strong{font-size:clamp(21px,6.4vw,30px);letter-spacing:-1px}
   #mapView .activity-panel:not(.is-expanded):not(.has-activity) .activity-stats span{font-size:9px}
   #mapView .activity-panel:not(.is-expanded):not(.has-activity) #startActivity{width:116px;min-height:48px;font-size:14px;margin:0;padding:10px;border-radius:28px;background:#a6ed79;color:#173022;box-shadow:none}
+  #mapView .activity-panel.is-expanded{position:absolute;left:12px;right:12px;bottom:calc(104px + env(safe-area-inset-bottom));z-index:9;margin:0;max-height:calc(100dvh - 150px - env(safe-area-inset-top) - env(safe-area-inset-bottom))}
   #mapView:has(.activity-panel.has-activity:not(.is-expanded)) .map-buttons{top:calc(66px + env(safe-area-inset-top))}
   #mapView:has(.activity-panel.has-activity:not(.is-expanded)) .map-quick-tools{display:flex}
   #mapView:has(.activity-panel.has-activity:not(.is-expanded)) .position-status{top:calc(12px + env(safe-area-inset-top))}
