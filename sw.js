@@ -1,8 +1,9 @@
 const PREFIX =
   "trail-pocket-shell:" + new URL(self.registration.scope).pathname + ":";
-const VERSION = PREFIX + "v4.1.0-r7";
+const VERSION = PREFIX + "v4.1.0-r8";
 const ASSETS = [
   "./unified-ui.mjs",
+  "./unified-ui-base.mjs",
   "./unified-ui.css",
   "./v41-enhancements.mjs",
   "./heading.mjs",
@@ -14,6 +15,7 @@ const ASSETS = [
   "./package-manifest.mjs",
   "./package-downloader.mjs",
   "./package-manager.mjs",
+  "./package-manager-base.mjs",
   "./package-manager.css",
   "./package-manager-controls.css",
   "./config/sa-index.json",
@@ -58,6 +60,7 @@ const ASSETS = [
   "./online-map.mjs",
   "./terrain.mjs",
   "./explore.mjs",
+  "./explore-base.mjs",
   "./app.mjs",
   "./core.mjs",
   "./storage.mjs",
