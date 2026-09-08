@@ -90,31 +90,44 @@ function officialCatalog(geojson) {
   return [...grouped.values()].map(r => ({ ...r, bounds: padded(r.bounds) })).sort((a,b) => a.name.localeCompare(b.name));
 }
 
-async function loadOfficialParks() {
-  const cached = savedCatalog();
-  if (typeof window === "undefined" || typeof fetch === "undefined") return cached || FEATURED_REGIONS;
-  if (typeof navigator !== "undefined" && navigator.onLine === false) return cached || FEATURED_REGIONS;
-  const aborter = new AbortController();
-  const timer = setTimeout(() => aborter.abort(), 7000);
-  try {
-    const response = await fetch(PARKS_URL, { cache: "no-store", signal: aborter.signal });
-    if (!response.ok) throw Error(`Park catalog HTTP ${response.status}`);
-    const catalog = officialCatalog(await response.json());
-    if (catalog.length < 100) throw Error("Official park catalog incomplete");
-    const known = new Set(catalog.map(r => r.name.toLocaleLowerCase()));
-    const extras = FEATURED_REGIONS.filter(r => !known.has(r.name.toLocaleLowerCase()));
-    const merged = [...extras, ...catalog];
-    storeCatalog(merged);
-    return merged;
-  } catch (error) {
-    console.warn("Trail Pocket official SA park catalog unavailable", error);
-    return cached || FEATURED_REGIONS;
-  } finally {
-    clearTimeout(timer);
-  }
+const initial = savedCatalog() || FEATURED_REGIONS;
+export const OFFLINE_REGIONS = [...initial];
+let loading = null;
+
+export async function refreshOfflineRegions() {
+  if (loading) return loading;
+  if (typeof fetch === "undefined") return OFFLINE_REGIONS;
+  if (typeof navigator !== "undefined" && navigator.onLine === false) return OFFLINE_REGIONS;
+  loading = (async () => {
+    const aborter = new AbortController();
+    const timer = setTimeout(() => aborter.abort(), 7000);
+    try {
+      const response = await fetch(PARKS_URL, { cache: "no-store", signal: aborter.signal });
+      if (!response.ok) throw Error(`Park catalog HTTP ${response.status}`);
+      const catalog = officialCatalog(await response.json());
+      if (catalog.length < 100) throw Error("Official park catalog incomplete");
+      const known = new Set(catalog.map(r => r.name.toLocaleLowerCase()));
+      const extras = FEATURED_REGIONS.filter(r => !known.has(r.name.toLocaleLowerCase()));
+      const merged = [...extras, ...catalog];
+      OFFLINE_REGIONS.splice(0, OFFLINE_REGIONS.length, ...merged);
+      storeCatalog(merged);
+      if (typeof window !== "undefined") window.dispatchEvent(new CustomEvent("trail:parks-changed", { detail: { count: merged.length } }));
+      return OFFLINE_REGIONS;
+    } catch (error) {
+      console.warn("Trail Pocket official SA park catalog unavailable", error);
+      return OFFLINE_REGIONS;
+    } finally {
+      clearTimeout(timer);
+      loading = null;
+    }
+  })();
+  return loading;
 }
 
-export const OFFLINE_REGIONS = await loadOfficialParks();
+if (typeof window !== "undefined") {
+  setTimeout(() => refreshOfflineRegions().catch(() => {}), 0);
+  window.addEventListener("online", () => refreshOfflineRegions().catch(() => {}));
+}
 
 export function filterRegions(regions, query = "") {
   const key = String(query).trim().toLocaleLowerCase();
