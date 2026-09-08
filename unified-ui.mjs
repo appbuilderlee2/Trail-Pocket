@@ -12,13 +12,13 @@ const paths = {
  more:'<circle cx="5" cy="12" r="1"/><circle cx="12" cy="12" r="1"/><circle cx="19" cy="12" r="1"/>',
 };
 const icon = name => `<svg viewBox="0 0 24 24" aria-hidden="true" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round">${paths[name]}</svg>`;
-const parkByName = new Map(OFFLINE_REGIONS.map(region => [region.name, region]));
+const parkFor = name => OFFLINE_REGIONS.find(region => region.name === name);
 
 function syncParkRows(){
  const api=window.trailPocketPackages,list=$('regionList');
  if(!api||!list)return;
  for(const row of list.querySelectorAll('.region-row')){
-  const name=row.querySelector('h3')?.textContent?.trim(),region=parkByName.get(name),action=row.querySelector('button');
+  const name=row.querySelector('h3')?.textContent?.trim(),region=parkFor(name),action=row.querySelector('button');
   if(!region||!action)continue;
   const installed=api.covering?.(region.bounds)||[],available=api.availableCovering?.(region.bounds)||[];
   const state=row.querySelector('.region-state'),meta=[...row.children].find(el=>el.tagName==='SPAN'&&!el.classList.contains('region-state'));
@@ -52,12 +52,17 @@ export function setupUnifiedUI(ctx) {
   if(name==='offline')requestAnimationFrame(syncParkRows);
  });
  window.addEventListener('trail:packages-changed',()=>requestAnimationFrame(syncParkRows));
+ window.addEventListener('trail:parks-changed',()=>{
+  const search=$('regionSearch');
+  if(search)search.dispatchEvent(new Event('input'));
+  requestAnimationFrame(syncParkRows);
+ });
  const parkObserver=new MutationObserver(()=>requestAnimationFrame(syncParkRows));
  if($('regionList'))parkObserver.observe($('regionList'),{childList:true});
  $('regionList')?.addEventListener('click',async event=>{
   const action=event.target.closest('.region-row button');
   if(!action||action.textContent==='開啟'||action.dataset.packageCovered==='1')return;
-  const row=action.closest('.region-row'),region=parkByName.get(row?.querySelector('h3')?.textContent?.trim()),api=window.trailPocketPackages;
+  const row=action.closest('.region-row'),region=parkFor(row?.querySelector('h3')?.textContent?.trim()),api=window.trailPocketPackages;
   if(!region||!api?.availableCovering?.(region.bounds)?.length)return;
   event.preventDefault();event.stopImmediatePropagation();
   action.disabled=true;
