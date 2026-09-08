@@ -1,6 +1,6 @@
 const PREFIX =
   "trail-pocket-shell:" + new URL(self.registration.scope).pathname + ":";
-const VERSION = PREFIX + "v4.0.0-beta.7-r4";
+const VERSION = PREFIX + "v4.0.0-beta.7-r5";
 const ASSETS = [
   "./unified-ui.mjs",
   "./unified-ui.css",
@@ -90,7 +90,7 @@ self.addEventListener("activate", (e) =>
         if (key.startsWith(PREFIX) && key !== VERSION) await caches.delete(key);
       await self.clients.claim();
     })(),
-  ),
+  );
 );
 self.addEventListener("message", (e) => {
   if (e.data?.type === "UPDATE") self.skipWaiting();
