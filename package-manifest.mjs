@@ -1,6 +1,7 @@
 const ID = /^[a-z0-9][a-z0-9-]{1,79}$/;
 const HASH = /^[a-f0-9]{64}$/;
 const FILES = ['map.pmtiles', 'search.index', 'routing.graph'];
+const ENCODINGS = new Set(['gzip']);
 
 export function validatePackageManifest(value) {
   if (!value || value.schema !== 1 || !ID.test(value.id || '') || typeof value.name !== 'string' || !value.name.trim())
@@ -13,6 +14,8 @@ export function validatePackageManifest(value) {
   for (const file of value.files) {
     if (!FILES.includes(file.name) || names.has(file.name) || !Number.isSafeInteger(file.size) || file.size <= 0 || file.size > 4 * 1024 * 1024 * 1024 || !HASH.test(file.sha256 || '') || typeof file.url !== 'string')
       throw Error('地圖包檔案資料無效');
+    if (file.encoding != null && !ENCODINGS.has(file.encoding)) throw Error('地圖包壓縮格式不支援');
+    if (file.name === 'map.pmtiles' && file.encoding) throw Error('PMTiles 不應再額外壓縮');
     const url = new URL(file.url, 'https://trail-pocket.invalid/');
     if (!['https:','http:'].includes(url.protocol)) throw Error('地圖包下載網址無效');
     names.add(file.name);
