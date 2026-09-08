@@ -50,6 +50,30 @@ jobs:
           cp node_modules/pmtiles/dist/pmtiles.js dist/vendor/pmtiles.js
           cp assets/icon-192.png assets/icon-512.png assets/devils-route.json assets/devils-base.json dist/assets/
           cp config/sa-index.json dist/config/sa-index.json
+          node <<'NODE'
+          const fs=require('fs');
+          const p='dist/index.html';
+          let html=fs.readFileSync(p,'utf8');
+          html=html.replaceAll('v4.1.1','v4.1.4').replaceAll('V4.1.1','V4.1.4');
+          html=html.replace(
+            '<script type="module" src="./app.mjs"></script>',
+            `<script type="module">
+              import("./app.mjs?v=4.1.4").catch((error) => {
+                console.error("Trail Pocket failed to start", error);
+                const banner=document.getElementById("banner");
+                if(banner){
+                  banner.classList.remove("hide");
+                  banner.innerHTML='App 啟動失敗。<a href="./repair.html">按此修復 v4.1.4</a>（不會刪除離線地圖或個人資料）。';
+                }
+              });
+            </script>`
+          );
+          if(!html.includes('v4.1.4')) throw Error('v4.1.4 HTML patch failed');
+          fs.writeFileSync(p,html);
+          const base='dist/unified-ui-base.mjs';
+          let ui=fs.readFileSync(base,'utf8').replaceAll('v4.1.0','v4.1.4').replaceAll('V4.1.0','V4.1.4');
+          fs.writeFileSync(base,ui);
+          NODE
           if curl --fail --location --retry 3 --retry-delay 2 \
             https://github.com/appbuilderlee2/Trail-Pocket/releases/download/maps-v4-current/sa-index.json \
             --output dist/config/sa-index.current.json; then
@@ -133,9 +157,15 @@ jobs:
         id: deployment
         uses: actions/deploy-pages@v4
 
-      - name: Validate live same-origin Range delivery
+      - name: Validate live repair page and Range delivery
         run: |
           BASE='${{ steps.deployment.outputs.page_url }}'
+          for attempt in $(seq 1 24); do
+            if curl --silent --show-error --fail "${BASE}repair.html" | grep -q 'v4.1.4'; then break; fi
+            test "$attempt" -lt 24
+            sleep 5
+          done
+          curl --silent --show-error --fail "${BASE}" | grep -q 'v4.1.4'
           MAP_PATH=$(node -e "const x=require('./dist/config/sa-index.json');const p=x.packages.find(p=>p.files?.some(f=>f.name==='map.pmtiles'));const f=p?.files.find(f=>f.name==='map.pmtiles');if(!f?.url)process.exit(1);process.stdout.write(f.url.replace(/^\.\//,''))")
           URL="${BASE}${MAP_PATH}"
           success=0
