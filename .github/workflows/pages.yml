@@ -104,14 +104,14 @@ jobs:
             const search=JSON.parse(fs.readFileSync(local(byName['search.index']),'utf8'));
             if(search.version!==1 || !Array.isArray(search.entries)) throw Error(`${pkg.id}: invalid search.index`);
             for(const entry of search.entries.slice(0,1000)) {
-              if(!entry || typeof entry.name!=='string' || !Array.isArray(entry.point) || entry.point.length!==2 || !entry.point.every(Number.isFinite)) throw Error(`${pkg.id}: invalid search entry`);
+              if(!entry || typeof entry.n!=='string' || !Array.isArray(entry.p) || entry.p.length!==2 || !entry.p.every(Number.isFinite) || typeof entry.t!=='string') throw Error(`${pkg.id}: invalid compact search entry`);
             }
             const graph=JSON.parse(fs.readFileSync(local(byName['routing.graph']),'utf8'));
-            if(graph.version!==1 || !graph.nodes || typeof graph.nodes!=='object' || !graph.edges || typeof graph.edges!=='object') throw Error(`${pkg.id}: invalid routing.graph`);
-            const nodeCount=Object.keys(graph.nodes).length;
-            const edgeCount=Object.values(graph.edges).reduce((n,list)=>n+(Array.isArray(list)?list.length:0),0);
-            if(nodeCount<1 || edgeCount<1) throw Error(`${pkg.id}: empty walking graph`);
-            console.log(`${pkg.id}: ${search.entries.length} search entries, ${nodeCount} graph nodes, ${edgeCount} directed edges`);
+            if(graph.version!==1 || !Array.isArray(graph.nodes) || !Array.isArray(graph.edges)) throw Error(`${pkg.id}: invalid routing.graph`);
+            if(graph.nodes.length<1 || graph.edges.length<1) throw Error(`${pkg.id}: empty walking graph`);
+            for(const node of graph.nodes.slice(0,1000)) if(!Array.isArray(node)||node.length!==2||!node.every(Number.isFinite)) throw Error(`${pkg.id}: invalid graph node`);
+            for(const edge of graph.edges.slice(0,1000)) if(!Array.isArray(edge)||edge.length!==3||!edge.every(Number.isFinite)) throw Error(`${pkg.id}: invalid graph edge`);
+            console.log(`${pkg.id}: ${search.entries.length} search entries, ${graph.nodes.length} graph nodes, ${graph.edges.length} directed edges`);
           }
           NODE
 
