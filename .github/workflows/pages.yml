@@ -77,6 +77,7 @@ jobs:
               const source=new URL(file.url);
               const filename=source.pathname.split('/').pop();
               if(!filename || !Number.isSafeInteger(file.size) || file.size<=0 || !/^[a-f0-9]{64}$/i.test(file.sha256)) throw Error(`${pkg.id}: invalid file metadata`);
+              if(file.encoding && file.encoding!=='gzip') throw Error(`${pkg.id}: unsupported package encoding ${file.encoding}`);
               total+=file.size;
               process.stdout.write(`${file.url}\t${filename}\t${file.size}\t${file.sha256}\n`);
               file.url=`./packages/${filename}`;
@@ -96,23 +97,31 @@ jobs:
       - name: Validate real production search and routing data
         run: |
           node <<'NODE'
-          const fs=require('fs');
+          const fs=require('fs'),zlib=require('zlib');
           const index=JSON.parse(fs.readFileSync('dist/config/sa-index.json','utf8'));
+          const readJson=file=>{
+            const path=`dist/${file.url.replace(/^\.\//,'')}`;
+            const raw=fs.readFileSync(path);
+            const bytes=file.encoding==='gzip'?zlib.gunzipSync(raw):raw;
+            return JSON.parse(bytes.toString('utf8'));
+          };
+          let packed=0,unpacked=0;
           for(const pkg of index.packages){
             const byName=Object.fromEntries(pkg.files.map(file=>[file.name,file]));
-            const local=file=>`dist/${file.url.replace(/^\.\//,'')}`;
-            const search=JSON.parse(fs.readFileSync(local(byName['search.index']),'utf8'));
+            const search=readJson(byName['search.index']);
             if(search.version!==1 || !Array.isArray(search.entries)) throw Error(`${pkg.id}: invalid search.index`);
-            for(const entry of search.entries.slice(0,1000)) {
-              if(!entry || typeof entry.n!=='string' || !Array.isArray(entry.p) || entry.p.length!==2 || !entry.p.every(Number.isFinite) || typeof entry.t!=='string') throw Error(`${pkg.id}: invalid compact search entry`);
-            }
-            const graph=JSON.parse(fs.readFileSync(local(byName['routing.graph']),'utf8'));
+            for(const entry of search.entries.slice(0,1000)) if(!entry || typeof entry.n!=='string' || !Array.isArray(entry.p) || entry.p.length!==2 || !entry.p.every(Number.isFinite) || typeof entry.t!=='string') throw Error(`${pkg.id}: invalid compact search entry`);
+            const graph=readJson(byName['routing.graph']);
             if(graph.version!==1 || !Array.isArray(graph.nodes) || !Array.isArray(graph.edges)) throw Error(`${pkg.id}: invalid routing.graph`);
             if(graph.nodes.length<1 || graph.edges.length<1) throw Error(`${pkg.id}: empty walking graph`);
             for(const node of graph.nodes.slice(0,1000)) if(!Array.isArray(node)||node.length!==2||!node.every(Number.isFinite)) throw Error(`${pkg.id}: invalid graph node`);
             for(const edge of graph.edges.slice(0,1000)) if(!Array.isArray(edge)||edge.length!==3||!edge.every(Number.isFinite)) throw Error(`${pkg.id}: invalid graph edge`);
+            for(const key of ['search.index','routing.graph']){
+              const f=byName[key],raw=fs.readFileSync(`dist/${f.url.replace(/^\.\//,'')}`);packed+=raw.length;unpacked+=(f.encoding==='gzip'?zlib.gunzipSync(raw):raw).length;
+            }
             console.log(`${pkg.id}: ${search.entries.length} search entries, ${graph.nodes.length} graph nodes, ${graph.edges.length} directed edges`);
           }
+          console.log(`Search/routing compression: ${(unpacked/1048576).toFixed(1)} MiB -> ${(packed/1048576).toFixed(1)} MiB (${Math.round(packed/unpacked*100)}%)`);
           NODE
 
       - name: Upload Pages artifact
@@ -132,13 +141,7 @@ jobs:
           success=0
           for attempt in $(seq 1 24); do
             rm -f /tmp/live-range.bin /tmp/live-range-headers.txt
-            if curl --silent --show-error --fail \
-              -H 'Range: bytes=0-1023' \
-              -D /tmp/live-range-headers.txt \
-              "$URL" -o /tmp/live-range.bin; then
-              success=1
-              break
-            fi
+            if curl --silent --show-error --fail -H 'Range: bytes=0-1023' -D /tmp/live-range-headers.txt "$URL" -o /tmp/live-range.bin; then success=1; break; fi
             echo "Live Pages package not propagated yet (attempt ${attempt}/24)."
             sleep 5
           done
