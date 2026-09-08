@@ -1,6 +1,6 @@
 const PREFIX =
   "trail-pocket-shell:" + new URL(self.registration.scope).pathname + ":";
-const VERSION = PREFIX + "v4.1.1";
+const VERSION = PREFIX + "v4.1.2";
 const ASSETS = [
   "./unified-ui.mjs",
   "./unified-ui-base.mjs",
@@ -75,18 +75,16 @@ const ASSETS = [
 ];
 self.addEventListener("install", (e) =>
   e.waitUntil(
-    (async () => {
-      const c = await caches.open(VERSION);
-      await c.addAll(
+    caches.open(VERSION).then((c) =>
+      c.addAll(
         ASSETS.map(
           (p) =>
             new Request(new URL(p, self.registration.scope), {
               cache: "reload",
             }),
         ),
-      );
-      await self.skipWaiting();
-    })(),
+      ),
+    ),
   ),
 );
 self.addEventListener("activate", (e) =>
@@ -130,22 +128,17 @@ self.addEventListener("fetch", (e) => {
   e.respondWith(
     (async () => {
       const c = await caches.open(VERSION);
-      if (e.request.mode === "navigate") {
-        try {
-          const fresh = await fetch(new Request(e.request, { cache: "reload" }));
-          if (fresh.ok) {
-            await c.put(e.request, fresh.clone());
-            return fresh;
-          }
-        } catch {}
-        return (
-          (await c.match(e.request, { ignoreSearch: true })) ||
-          (await c.match(new URL("./index.html", self.registration.scope).href))
-        );
-      }
       const cached = await c.match(e.request, { ignoreSearch: true });
       if (cached) return cached;
-      return fetch(e.request);
+      try {
+        return await fetch(e.request);
+      } catch (err) {
+        if (e.request.mode === "navigate")
+          return await c.match(
+            new URL("./index.html", self.registration.scope).href,
+          );
+        throw err;
+      }
     })(),
   );
 });
