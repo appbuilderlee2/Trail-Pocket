@@ -1,267 +1,194 @@
-# Trail Pocket PWA v3.8.0
+# Trail Pocket PWA v4.0.0-beta.7
 
-## v4.0 beta development
+Trail Pocket is an offline-first hiking PWA designed for iPhone and modern browsers, with a strong focus on reliable South Australia hiking maps.
 
-The stable GitHub Pages root remains v3.8.0. The isolated v4 preview is built
-from `development/v4.0` at `/Trail-Pocket/v4-preview/`, with its own Service
-Worker scope and IndexedDB/OPFS package catalog.
+> **Current status:** v4 is still beta. Do not treat it as a finished safety-critical navigation app until flight-mode restart, interrupted-download recovery, GPS recording and long-distance real-device tests have passed.
 
-The beta introduces MapLibre with OpenFreeMap online vectors, OPFS-backed
-PMTiles, resumable range downloads, SHA-256 verification and repair, backup
-format v2, a South Australia seven-region catalog, cross-package search and
-walking-graph merging, and GPS acceptance/filter diagnostics. It must not be
-promoted to v4.0 until the Para Wirra production package, flight-mode restart,
-download interruption, and a real iPhone 1–2 km comparison walk have passed.
+## v4.0.0-beta.7
 
-## v3.8.0 GPS continuity and elevation
+The current `main` branch has moved from the v3 raster/Overpass-focused architecture to the new v4 vector/offline-package architecture.
 
-- Current GPS altitude appears only when iOS supplies usable vertical accuracy.
-- Activity records count GPS gaps instead of silently hiding missing distance.
-- Returning after screen lock or app switching reports the unrecorded interval.
+### Map engine
 
-## v3.7.1 Live map and activity distance reliability
+- MapLibre GL JS vector-map engine.
+- OpenFreeMap for online vector browsing.
+- Outdoor-oriented map styling inspired by the clarity of Organic Maps.
+- GPX/KML route overlays and GPS/activity display remain part of the app.
 
-- Online map tiles start loading immediately, even while high-frequency GPS fixes redraw the map.
-- Slow tile requests fail visibly after 12 seconds and can be retried.
-- Good-quality walking fixes update after about 3 m while stationary drift and jumps remain filtered.
-- Distance below 1 km shows metre-level changes with three decimal places.
+### Large offline maps
 
-## v3.7.0 Suggested regional downloads
+- PMTiles is the primary v4 offline map format.
+- Large package files are stored in OPFS where supported.
+- IndexedDB stores package metadata, download state and app records.
+- PMTiles can be read directly from local storage by the MapLibre map layer.
 
-- Adds a searchable South Australia hiking-region list with download, installed and size states.
-- Includes Para Wirra, Belair, Morialta, Alligator Gorge, Cleland and Onkaparinga presets.
-- Opens every preset as a reviewable fixed map selection before downloading.
+### Reliable downloads
 
-## v3.6.0 Faster combined offline maps
+- Resumable HTTP Range downloads.
+- Download progress and pause/resume state.
+- Storage/capacity checks before large downloads.
+- SHA-256 integrity verification.
+- Corrupted package detection and repair/re-download support.
+- Download state is designed to survive interruption rather than silently marking incomplete data as installed.
 
-- Uses a fast offline package by default while retaining OSM detail, local search and the walking graph.
-- Lets users opt into 20 m contours in Settings when terrain detail is needed.
-- Starts area selection near 120 km² and warns above 150 km² to avoid slow, dense downloads.
-- Labels the active source as one combined offline view and renders every overlapping saved area together.
+## South Australia offline package system
 
-## v3.5.1 Field reliability
+Trail Pocket v4 divides South Australia into seven production regions:
 
-- Verifies each new offline package after IndexedDB storage and restores the previous copy on failure.
-- Warns when GPS approaches or leaves downloaded coverage and reports GPS quality clearly.
-- Restores interrupted activities in a paused state with checkpoint details.
-- Adds parking, junction and note markers, breadcrumb fitting, and multilingual offline POI aliases.
+1. Adelaide & Mount Lofty Ranges
+2. Fleurieu Peninsula & Kangaroo Island
+3. Yorke Peninsula & Mid North
+4. Eyre Peninsula
+5. Flinders Ranges & Far North
+6. Murraylands & Riverland
+7. Limestone Coast
 
-## v3.4.1 Unified navigation
+The Offline Maps screen includes a **South Australia / Download All** workflow when a valid seven-region production index is available.
 
-- Three primary destinations: Map, My Library and Settings.
-- My Library contains Routes, Offline Maps (including GeoPDF), and an inline Activity History page.
-- Map search/download/route tools are grouped in one accessible More tools menu.
-- Saved route secondary actions are under More; add/import actions share one disclosure.
-- Shared typography, white surfaces, list separators, outlined navigation icons and consistent controls.
-- Existing GPS, offline data, route editing and recording remain on their existing data model.
+Each production region is designed to publish:
 
-## v3.3.1 Direction and hiking UI
+- `*-map.pmtiles` — vector map package
+- `*-search.index` — offline place/POI search index
+- `*-routing.graph` — offline walking/trail graph
+- `*-manifest.json` — file metadata, sizes and SHA-256 hashes
 
-- GPS movement bearing and opt-in phone compass are clearly distinguished; null, stale and low-confidence readings never produce a direction cone.
-- Direction cone is geographically projected on online, offline and GeoPDF maps. GeoPDF uses local geographic control-point projection, not an assumed north-up image.
-- Compass permission is requested only by a Settings button. Hidden-page readings are discarded; GPS stop also stops compass listeners.
-- Mobile map fills the viewport with compact time/distance/start controls, source button and GPS freshness/accuracy status.
-- Saved routes use compact route previews, local name search and name/distance/offline-first sorting.
-- Browser sensor support varies. GPS course is travel direction, not phone orientation. Compass may be magnetic rather than true north; it is an orientation aid, not a route instruction. Screen-off/background recording remains subject to browser restrictions.
+A combined `sa-index.json` describes the complete downloadable catalog.
 
-## v3.2.2 Clear navigation and settings
+## South Australia build pipeline
 
-- Replaces the duplicate Activity tab with one Settings destination.
-- GPS, map source, offline layers, deviation alerts, screen-awake preference, offline audit, backup and guidance now live in Settings.
-- Explore always minimizes the activity sheet; the idle activity control is now a compact floating Start button.
-- Mobile bottom navigation is shorter and the offline audit uses dark text on a light-green action.
+GitHub Actions can build the South Australia packages from the current Geofabrik South Australia OSM extract.
 
-## v3.1.3 Map-first activity mode
+Production builds:
 
-- Starting an activity now opens a compact 68 px tracker instead of covering the map.
-- While the tracker is collapsed, mobile hides the two top tool rows and bottom navigation.
-- Mobile map controls keep only north and current-position actions; pinch gestures handle zoom.
-- Tap the tracker chevron or Activity tab to restore the full activity sheet and navigation.
+- extract each configured region with `osmium`
+- generate PMTiles with Planetiler
+- create the offline search index
+- create the walking/trail routing graph
+- calculate file sizes and SHA-256 hashes
+- publish package assets to the `maps-v4-current` release
+- generate the combined seven-region `sa-index.json`
 
-## v3.1.2 Larger mobile map
+The workflow validates that all **7 production manifests** exist before publishing the final production index.
 
-- Idle activity sheet is now a compact start bar instead of a metrics card.
-- Collapsed recording state keeps only time and distance visible.
-- Expanded details are capped lower so the map remains useful while checking stats.
+A smaller **Para Wirra** pilot package is retained for explicit smoke testing and development validation.
 
-## v3.1.1 Responsive navigation correction
+## Offline search and walking network
 
-- Keep the floating glass navigation on phones while preserving the full-width desktop bar.
+Installed v4 packages can provide:
 
-## v3.1.0 Mobile activity UI
+- offline place and POI search
+- offline trail/road search data
+- walking graph data for routing experiments
+- graph merging across overlapping installed regions
 
-- Full-map mobile layout with a draggable-style activity bottom sheet.
-- Compact and expanded activity states with six outdoor-readable metrics.
-- One-thumb pause, resume and finish actions, plus quick GPS and history access.
-- Four-tab mobile navigation: Explore, Saved, Offline and Activity.
+Routing is constrained by the downloaded walking graph. Trail Pocket must not invent a valid walking route where downloaded graph data does not support one.
 
-## v3.0.2 GeoPDF 來源狀態同步
+## GPS and activity recording
 
-- 由地圖來源面板切換至獨立 GeoPDF 時，同步更新地圖標題、離線狀態及路線控制。
+Trail Pocket includes:
 
-## v3.0.1 手機快速鍵顯示修正
+- current GPS position and accuracy
+- activity recording
+- distance tracking
+- elevation data when iOS supplies usable altitude accuracy
+- GPS quality filtering and jump rejection
+- gap reporting when recording is interrupted
+- route and breadcrumb display
 
-- 修正地圖「下載」快速鍵在部分畫面白字白底；更新離線快取版本，已安裝 PWA 會收到更新提示。
+### Important iPhone PWA limitation
 
-## v3.0.0 地圖來源及手機行山介面
+iOS does not guarantee continuous background GPS for a Home Screen PWA. Screen lock, app switching or browser suspension can interrupt JavaScript and location updates. Trail Pocket records/report gaps rather than pretending missing GPS samples were continuous movement.
 
-- 新增「自動（離線優先）／線上 OSM／已下載離線地圖／官方 GeoPDF」來源選擇器。
-- 已下載範圍會優先停用線上圖磚；GeoPDF 可獨立顯示或半透明疊加，途中可即時轉換。
-- GeoPDF 疊加使用地理控制點反投影及網格校正，並保留 GPX/KML 路線、GPS 藍點與活動軌跡。
-- 手機版改為地圖主導、bottom sheet 地圖來源和快速開始活動的行山介面。
-- 每個公開版本均在頁首、說明頁、備份資料及離線快取顯示相同版本號。
+A future native iPhone version may be needed if guaranteed background tracking becomes a core requirement.
 
-## v2.9.1 GeoPDF 定位可靠性修正
+## GPX / KML and GeoPDF
 
-- 使用 PDF CropBox 原點計算地理座標；旋轉頁面暫未支援時會拒絕匯入，避免 GPS 藍點顯示錯位。
+Existing Trail Pocket functions include:
 
-## v2.9.0 官方 GeoPDF 離線定位
+- import multiple GPX/KML routes
+- preserve multi-segment tracks
+- route storage and management
+- GPX export
+- official geospatial PDF import where supported geographic metadata is present
+- offline GeoPDF display with GPS overlay
 
-- 可匯入帶 `/VP`、`/Measure`、`/GPTS`、`/LPTS` 地理資訊的官方 Geospatial PDF；多圖幅 PDF 會選擇最大有效主圖，避免誤用位置索引小圖。
-- PDF 在裝置內轉成最高 4096 px 的清晰 WebP／PNG 並保存到 IndexedDB；原檔、地理控制點及 GPS 不會上傳。
-- GeoPDF 可完全離線縮放、平移、顯示 GPS 藍點、精度圈、比例尺及已記錄活動軌跡；圖幅外位置會明確提示，不會把藍點硬放入地圖。
-- GeoPDF 已納入離線自檢、完整 JSON 備份／還原及 Service Worker 外殼。單一輸入 PDF 上限 30 MB，轉換後記錄上限 32 MB。
-- 暫不支援普通掃描 PDF、受密碼保護 PDF、未知地理編碼或只使用 TerraGo 私有擴充的檔案；匯入失敗不會猜測座標。
+## Backup and migration
 
-## v2.8.0 完整離線包、搜尋及步道路由
+v4 introduces a newer backup/storage architecture while preserving the goal of safe migration from existing Trail Pocket data.
 
-- 離線 OSM 圖層加入道路等級、土地用途、建築物、水域、步道、山峰及常用設施。
-- 下載時在裝置建立地名／POI 搜尋索引，無網絡亦可搜尋已下載區域。
-- 自訂路線可用 Web Worker A* 沿已下載步道路網連線；失敗會明確警告直線不可視為可行路線。
-- 偏航提醒可在同一個已下載路網範圍內計算返回原路線，絕不假裝能導航未下載地區。
-- 每張完整離線包上限 500 km²／128 MB，實際可下載面積仍受 OSM 密度、手機容量及公共服務限制。
+The design principles are:
 
-## v2.7.0 備份及前景活動安全工具
+- never silently overwrite a known-good offline package with an incomplete one
+- validate new package data before marking it ready
+- preserve existing routes and user records during schema upgrades
+- retain a recovery path when migrating old data
 
-- 「備份全部資料」可匯出路線、完整離線 OSM 向量／等高線、獨立離線區域、活動紀錄及一般設定；300 MB 上限保護手機記憶體。未完成活動草稿不會帶到另一部裝置。
-- 「還原備份」會先驗證格式及記錄 ID，再以同 ID 更新、其他現有資料保留的方式一次合併寫入。還原後仍須做離線自檢及飛行模式重開。
-- 地圖頁加入只在裝置顯示的緊急座標、GPS 精度、資料新鮮度及複製按鈕；不會自動聯絡救援服務。
-- 活動頁加入可選的 Screen Wake Lock。支援時會在前景活動期間保持螢幕亮著，暫停或離頁立即釋放；較耗電，且不能把 iPhone PWA 變成可靠背景 GPS。
+## PWA deployment
 
-## v2.6.0 大型離線地圖及安全儲存
+GitHub Pages:
 
-- 每張離線地圖由 150 km²／32 MB 提升至 **500 km²／128 MB**；路線周邊新增 5 km 選項。
-- 大範圍自動切成約 100 km² 的 Overpass 分區，逐區下載、按 OSM 類型及 ID 去重，再合併成一張地圖；每個公共服務請求仍限制 32 MB，失敗會自動改用備用端點。
-- 大範圍等高線會自動由 zoom 12 降至合適高程層級，避免超出圖塊和記憶體上限；20 m 等高距保持不變，但大範圍線形會較概括。
-- 寫入 IndexedDB 前檢查瀏覽器估算的剩餘空間，預留 25% 加 8 MB 安全空間；下載未完整、逾時、取消或儲存失敗時不會覆蓋舊地圖。
-- 「離線自檢」會實際讀回 Service Worker 離線外殼、每張底圖、建築物／地標及等高線；舊版或不完整地圖會要求重新下載。
+`https://appbuilderlee2.github.io/Trail-Pocket/`
 
-通用行山地圖 PWA：每次由使用者匯入 GPX／KML，管理多條路線，選擇每條路線需要下載的周邊底圖。
+The app is deployed as a static PWA through GitHub Actions.
 
-## v2.5.1 狀態顯示修正
+On iPhone:
 
-- 沒有已下載範圍時，不再錯誤顯示「已包含離線等高線」。
+1. Open the GitHub Pages site in Safari.
+2. Tap **Share**.
+3. Tap **Add to Home Screen**.
+4. Open Trail Pocket from the Home Screen.
+5. Download the required offline region(s) before leaving coverage.
+6. Test the exact downloaded map in Airplane Mode before relying on it outdoors.
 
-## v2.5.0 離線等高線
+Do not open `index.html` directly from the Files app; Service Worker, modules, OPFS/IndexedDB and PWA behaviour require a proper HTTPS origin.
 
-- 每次新下載區域或路線底圖時，從 Mapzen Terrain Tiles／AWS Open Data 取得高程格網，在裝置產生約 20 m 間距等高線；100 m 主等高線較粗並附高度標籤。
-- 「圖層」可獨立開關等高線。舊底圖保留，但要重新下載才會加入等高線。
-- 等高線連同 OSM 向量資料受現行 500 km²／128 MB 上限約束；不下載 OpenTopoMap 或 OSM 圖磚作離線用途。
+## Required beta validation before v4.0 stable
 
-## v2.4.0 地名搜尋及目前位置
+Before promoting v4 to a stable release, the following still require real end-to-end validation:
 
-- 頁首固定顯示版本號；每次發佈同步更新頁首、說明頁、套件及離線快取版本。
-- 可搜尋地名或使用目前 GPS 位置，選定後直接置中並開啟離線範圍框。地名搜尋只在按鈕觸發，設每秒最多一次、五個結果及本機快取，不提供自動完成。
+- all seven South Australia production packages available from the production catalog
+- Download All behaviour
+- pause/resume after a network interruption
+- insufficient-storage handling
+- SHA-256 corruption detection and repair
+- cold restart in Airplane Mode
+- PMTiles reopening from OPFS after app restart
+- offline search with no network
+- walking graph across regional boundaries
+- real iPhone GPS recording
+- screen-lock/app-switch gap behaviour
+- long-distance outdoor comparison walk
 
-## v2.3.1 詳細離線地圖
+## Development
 
-- 所有不超過 500 km² 的選區及路線底圖均要求 OSM 建築物輪廓，以及有名稱的設施、商店、旅遊地標及地方標籤；圖層設定可獨立隱藏「建築物」及「設施及地點」。完整合併資料上限為 128 MB，每個服務分區回傳上限 32 MB。舊底圖須重新下載。
-- 標準 OSM raster/vector tile server 明確禁止離線預取；程式仍只用在線 raster 作目前畫面瀏覽。離線功能下載及自行渲染 OSM 原始資料，不聲稱等同商業 App 圖磚。
-- 偏航提示須先進入路線約 300 m 範圍才會啟動，避免在家中或前往起點途中發出數十公里偏航警告；到達後仍使用連續可靠位置及時間門檻。
+Node.js 20 or later:
 
-## v2.3 開始活動
-
-- 地圖頁「開始活動」：可選路線或自由行山。六項數據：排除暫停的時間、GPS 距離、累計爬升、預計剩餘、平均配速、平均速度；實際高度曲線及橙色已行軌跡。
-- 暫停、繼續、完成並儲存；活動紀錄可查看及匯出 GPX。原始匯入路線不會被改寫。剩餘只是開始時的檔案長度減實際距離，非沿線定位、逐彎導航或自動回程估算。
-- iPhone PWA 不保證背景 GPS；切換 App／隱藏頁面主動暫停，返回須手動繼續。意外關閉恢復至最近儲存點（通常約 5 秒內），中斷時間不會虛增。請出發前測試定位、飛行模式與重開。
-- 活動草稿每 5 秒及收到 GPS／狀態改變時儲存，完成時在同一 IndexedDB 交易寫入歷史並移除草稿；失敗保留草稿。v3 只新增 activities，保留 routes/maps/settings/areas。Web Locks 可用時限制單一視窗記錄。
-- 定位精度須 ≤40 m，排除重複、超過 15 秒的舊訊號、速度 >4.5 m/s 的跳點及低於 max(5 m, 精度/2) 的漂移；30 秒以上缺口及暫停會另起一段，不補距離。步行過濾會低估短距離、慢行及訊號差路段，非精密測量。
-- GPS 海拔精度須 ≤20 m，5 m 高度變化門檻；缺失資料不補值，爬升只代表有效樣本估計。最多 50,000 點後暫停。活動位置只在本機儲存，但在線地圖跟隨仍會向 OSM 請求附近圖磚。
-
-## v2.2 地圖瀏覽及自由選區
-
-- 啟動直接進入地圖；不需要先匯入路線。在線可拖動、縮放全球 ±85°緯度地圖，或用「前往位置」選常用地區／輸入經緯度。
-- 「選擇離線範圍」使用中央紫框（畫面各邊內縮 15%），拖動／縮放調整範圍，顯示面積與座標。命名後下載框內道路、步道、水域、林地、建築物、地標及等高線。每張最多 500 km²、128 MB，整體 10 分鐘逾時。
-- 不依賴 GPX；多個區域独立保存至 IndexedDB `areas`。完成後自動預覽實際離線資料，可在「離線下載 → 我的離線區域」重開或刪除。刪除區域不刪路線，刪除路線也不刪區域。
-- 在線完整底圖來自 `https://tile.openstreetmap.org/{z}/{x}/{y}.png`，僅載入使用者當前可見畫面，使用瀏覽器標準 HTTP 快取及 Referer；沒有圖磚預下載或離線圖磚儲存。遵守 https://operations.osmfoundation.org/policies/tiles/ 。
-- 離線下載使用 Overpass 向量資料及 Mapzen Terrain Tiles 高程資料，**不是上述在線圖磚**。兩種底圖配色、標籤及細節不同；離線包含自行產生的等高線，但不含衛星或全部地名。在線瀏覽過不代表已下載。服務可能限流或暫時無法載入。
-- 「已下載離線底圖」可在仍有網路時預覽已保存區域；斷網會自動改用可見範圍內已下載的路線底圖及獨立區域。未下載部分留白，不聲稱完整世界地圖已離線。
-- 開啟在線地圖會向 OSM 圖磚服務傳送目前視野；跟隨 GPS 時視野也可能反映附近位置。GPX 檔案及 GPS 原始資料不直接上傳。選區下載會把框內矩形座標送往 Overpass。
-- 資料庫從 v1 安全升級至 v2，只新增 `areas`，保留原有 routes/maps/settings。自動測試包含舊資料遷移及區域獨立刪除。
-
-## 現有功能
-
-- v2.1：可切換步道、道路名稱、林地、水域、標記及路線坡度圖層。坡度僅用原檔海拔；缺值為灰色，不提供 DEM／衛星／等高線。
-- 前景偏航提醒：50／100／200 m 閾值，排除 GPS 誤差後連續 3 個不同位置且至少 10 秒超標才提示；精度不足或超過 20 秒的位置不判斷。聲音須用戶開啟，最多每分鐘一次；鎖屏、背景或靜音可能失效。
-- 本機規則式路線助手：步速、休息、每段距離、估計時間、累計上落及保留缺口的高度圖。完整海拔才計爬升時間；不是安全建議或逐彎導航。
-- 自訂路線：從座標開始畫線，或複製已有路線；拖動地圖，以中心點加點、撤回、反轉、另存新路線。原檔不被覆蓋，新路線需自行下載底圖。線段不自動吸附步道，未確認可通行性。
-- 匯出 GPX，保留多段路線、標記和缺失高度。所有路線均可使用新功能。
-- 路線中點附近的 Open-Meteo 模型天氣、3 日預報、日出日落及模型雪深。用戶同意更新才傳送約 4 位小數的中點座標；資料保留在路線记录。離線標記快照，超過 3 小時提示更新；失敗保留舊預報。不是即時封路、火警或現場路況。
-
-- 一次或分次匯入多個 GPX／KML；支援 GPX 軌跡、GPX route、KML LineString／MultiGeometry／gx:Track 與座標標記。
-- 多條路線獨立保存於 IndexedDB，可命名、切換或刪除。多段軌跡不會被補成直線。
-- 每條路線可選周邊 500 m、1 km 或 2 km，逐條下載離線底圖。
-- 道路、步道、水道與部分地表資料来自 OpenStreetMap；原始向量資料保存在裝置，沒有依賴網上圖磚。
-- 下載後顯示資料日期與容量；可刪除底圖而保留路線。下載失敗會保留舊有完整底圖。
-- Service Worker 儲存完整 App 介面；檢查 App 資源與底圖是否真正完成，不以曾經打開畫面當作離線完成。
-- GPS 位置、精度範圍、與軌跡的距離、舊位置提示、置中及地圖縮放／拖曳。
-- Devils Nose 為可選示範，並非固定唯一可使用地圖。
-- 所有程式、字體及圖示均不需要外部 CDN。在線瀏覽會請求可見圖磚；離線底圖只在用戶按下載時才會向 Overpass 請求。
-
-## 目前交付狀態
-
-GitHub Pages 網址：https://appbuilderlee2.github.io/Trail-Pocket/ 。以 `.github/workflows/pages.yml` 部署純靜態資源。未進行真實 iPhone 的安裝、離線重啟、GPS 偏航、聲音或公共 Overpass 跨網域下載端到端測試。
-
-核心、資料儲存、Service Worker 及新增功能均有 Node 自動測試，包含真實 GPX/KML 一致性、多路線獨立保存、GPS 防誤報、GPX 匯出、行程估算、天氣驗證與子目錄下離線資源。這些檢查不等於 iPhone 實機測試。
-
-## 部署及 iPhone 安裝
-
-這是純靜態 PWA，不需要編譯或後端資料庫。
-
-1. 把 `index.html`、各 `.mjs`、各 `.css`、`sw.js`、`manifest.webmanifest` 及 `assets` 資料夾原樣放到 HTTPS 靜態網站。`tests`、`package.json` 與說明文件無需上傳到正式網站。
-2. GitHub Pages 設定 Source 為 GitHub Actions，由本儲存庫的 workflow 發佈。所有路徑是相對路徑，支援 `https://帳戶.github.io/儲存庫/` 子目錄。
-3. iPhone 用 Safari 開啟已部署網址，按分享 → 加入主畫面。
-4. 從主畫面打開 App，匯入 GPX／KML。到「離線下載」選擇範圍並下載。
-5. 確認「App 可離線開啟」及所需路線「底圖已下載」，開飛行模式並重新打開 App，確認地圖與路線仍顯示。
-
-直接從 iPhone「檔案」打開 `index.html` 不會安裝 PWA，亦不能可靠使用模組、Service Worker、IndexedDB 或 GPS。
-
-## 離線及下載的實際限制
-
-- 公共 Overpass 服務：主要 `https://overpass.kumi.systems/api/interpreter`，備用 `https://overpass-api.de/api/interpreter`。服務可能繁忙、限流或不支援某個網路環境，下載失敗需重試。不同使用者的網路／瀏覽器仍需實測。
-- 逐張下載、一次一項，避免大量預載公共服務。每張地圖 500 km²／128 MB 上限；約 100 km² 一個服務分區，每區最多 32 MB，10 分鐘整體逾時。極長路線仍應分段匯入。
-- 所下載是地理範圍內的道路／步道／水道等 OSM 向量資料，以及由開放高程格網生成的 20 m 等高線；沒有衛星照片或即時封路。天氣需分開按更新下載，屬模型預報。
-- GPX/KML 本身留在本機。下載底圖會把路線附近的矩形地理範圍傳送給 Overpass。GPS 點不會傳送到伺服器。
-- GPS 和偏航提醒是前景功能，iPhone 熄屏或轉到另一個 App 後可能停止更新。沒有背景記錄、背景推播或逐彎導航。灰色點為過期位置。
-- 地圖支援全球 ±85°緯度；跨國際換日線路線需分段。每檔最多 25 MB、100,000 路線座標點。
-- 不同手機、Safari 與主畫面 PWA 未必共用資料。清除網站資料、私密瀏覽或空間不足可能造成離線資料消失。持續儲存權限不是永久保留保證，出發前仍要測試並保留原始路線檔。
-- 路線距離按座標計算，不是完整來回里程保證；現場路牌及最新公園公告優先。
-
-## 示例的資料差異
-
-Devils Nose GPX 與 KML 均含相同的 299 個軌跡座標，計算約 2.952 km。Walking SA 網頁列出 4.4 km 來回、約 2 小時、Grade 4，兩者不一致，因此保留原始軌跡並提示。原檔只有 19 個路線點有海拔，未產生完整高度圖。The Knob Lookout 是原檔附帶、但不在該軌跡上的標記。
-
-來源：https://www.walkingsa.org.au/walk/find-a-place-to-walk/devils-nose-and-back-hike-para-wirra/
-
-## 開發檢查
-
-以 Node.js 20 或以上執行：
-
-```
+```bash
 npm install
 npm test
 ```
 
-本機查看可在此資料夾執行 `python3 -m http.server 8000`，再用瀏覽器打開 `http://localhost:8000/`。正式 iPhone 使用仍需 HTTPS 網址。
+For local static testing:
 
-每次更新 App 時，修改 `sw.js` 的版本值及畫面版本文字。新 Service Worker 完成下載後，App 會提示更新。App 更新不刪除 IndexedDB 中的路線／底圖。
+```bash
+python3 -m http.server 8000
+```
 
-## 資料及權利
+Then open `http://localhost:8000/` in a browser. Production PWA behaviour on iPhone still requires HTTPS.
 
-Weather data by Open-Meteo：https://open-meteo.com/ ，資料按 CC BY 4.0 使用。此公開免費 API 適合非商業用途；商業部署前需另行核對 https://open-meteo.com/en/terms 的授權及用量限制。沒有無限流量或可用性保證。
+When changing public app resources, keep the visible version and the Service Worker cache version synchronized so installed PWAs can receive the update correctly.
 
-底圖 © OpenStreetMap contributors，按 ODbL 1.0 使用：https://www.openstreetmap.org/copyright 及 https://opendatacommons.org/licenses/odbl/1-0/。
+## Data and attribution
 
-等高線使用 Mapzen Terrain Tiles／AWS Open Data；各地區須依原始高程資料來源標示。南澳洲資料 © Commonwealth of Australia (Geoscience Australia) 2017。完整資料來源及署名：https://github.com/tilezen/joerd/blob/master/docs/attribution.md 。
+- Online vector-map rendering uses OpenFreeMap/OpenStreetMap-derived data according to the applicable provider terms and attribution requirements.
+- Offline South Australia packages are generated from OpenStreetMap data. © OpenStreetMap contributors, ODbL 1.0.
+- Weather features use Open-Meteo where enabled.
+- Existing elevation/terrain features may use Mapzen Terrain Tiles / AWS Open Data and their underlying attribution requirements.
 
-示例底圖 `assets/devils-base.json` 為 2026-09-03 擷取的原始地理範圍資料，按 ODbL 1.0 提供。GPS 示例來自使用者提供的 Walking SA GPX/KML，原有權利維持不變。
+Trail Pocket is a hiking aid, not an authoritative source for closures, hazards or emergency navigation. Current park alerts, official signage and emergency advice take priority.
+
+## Version history
+
+The Git history contains the detailed v2.x/v3.x development record, including GeoPDF, offline Overpass maps, contours, activity recording, GPS reliability, map-first mobile UI and earlier offline-download architecture.
+
+Current application version: **v4.0.0-beta.7**.
