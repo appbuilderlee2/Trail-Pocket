@@ -2,11 +2,11 @@
 
 Trail Pocket is an offline-first hiking PWA designed for iPhone and modern browsers, with a strong focus on reliable South Australia hiking maps.
 
-> **Current status:** v4 is still beta. Do not treat it as a finished safety-critical navigation app until flight-mode restart, interrupted-download recovery, GPS recording and long-distance real-device tests have passed.
+> **Current status:** the v4 production package infrastructure is now live and the seven South Australia regions are available through the production catalog. The app is still labelled beta until the remaining real-iPhone field tests are completed.
 
 ## v4.0.0-beta.7
 
-The current `main` branch has moved from the v3 raster/Overpass-focused architecture to the new v4 vector/offline-package architecture.
+The current `main` branch uses the new v4 vector/offline-package architecture.
 
 ### Map engine
 
@@ -29,7 +29,8 @@ The current `main` branch has moved from the v3 raster/Overpass-focused architec
 - Storage/capacity checks before large downloads.
 - SHA-256 integrity verification.
 - Corrupted package detection and repair/re-download support.
-- Download state is designed to survive interruption rather than silently marking incomplete data as installed.
+- Download state survives interruption rather than silently marking incomplete data as installed.
+- Already completed production regions are skipped by **Download All** when the installed version matches the current catalog.
 
 ## South Australia offline package system
 
@@ -43,20 +44,38 @@ Trail Pocket v4 divides South Australia into seven production regions:
 6. Murraylands & Riverland
 7. Limestone Coast
 
-The Offline Maps screen includes a **South Australia / Download All** workflow when a valid seven-region production index is available.
+The Offline Maps screen includes **South Australia / Download All**. This downloads all seven production regions, which together provide the complete South Australia offline catalog used by Trail Pocket.
 
-Each production region is designed to publish:
+The current production package set is approximately **522.7 MiB (about 548 MB)** before browser/device storage overhead.
+
+Each production region contains:
 
 - `*-map.pmtiles` — vector map package
 - `*-search.index` — offline place/POI search index
 - `*-routing.graph` — offline walking/trail graph
 - `*-manifest.json` — file metadata, sizes and SHA-256 hashes
 
-A combined `sa-index.json` describes the complete downloadable catalog.
+A combined `sa-index.json` describes the full seven-region downloadable catalog.
+
+### Production delivery
+
+The canonical packages are built and published to the `maps-v4-current` GitHub Release.
+
+For browser/PWA downloads, the GitHub Pages deployment mirrors the current verified package files to the same origin under `/packages/`. This avoids browser CORS restrictions on direct GitHub Release asset downloads while preserving HTTP Range support for resumable downloads.
+
+The live deployment has been verified to return:
+
+- HTTP `206 Partial Content`
+- `Accept-Ranges: bytes`
+- correct `Content-Range`
+- correct partial response size
+- browser-compatible CORS headers
+
+This is the production path used by the iPhone PWA downloader.
 
 ## South Australia build pipeline
 
-GitHub Actions can build the South Australia packages from the current Geofabrik South Australia OSM extract.
+GitHub Actions builds the South Australia packages from the current Geofabrik South Australia OSM extract.
 
 Production builds:
 
@@ -67,10 +86,37 @@ Production builds:
 - calculate file sizes and SHA-256 hashes
 - publish package assets to the `maps-v4-current` release
 - generate the combined seven-region `sa-index.json`
+- mirror verified package files into the GitHub Pages deployment
+- validate live HTTP Range delivery after deployment
 
 The workflow validates that all **7 production manifests** exist before publishing the final production index.
 
-A smaller **Para Wirra** pilot package is retained for explicit smoke testing and development validation.
+A smaller **Para Wirra** pilot package remains available for explicit smoke testing and development validation.
+
+## Production validation status
+
+The current production deployment has passed:
+
+- **102 / 102 automated reliability tests**
+- all seven production package manifests present
+- all 21 production data files verified by file size and SHA-256
+- all seven `search.index` files parsed successfully
+- all seven `routing.graph` files parsed successfully
+- non-empty real walking graphs for every production region
+- same-origin GitHub Pages package delivery
+- live HTTP Range / resume-path validation
+
+Current production search and walking graph data includes approximately:
+
+| Region | Search entries | Walking graph nodes |
+| --- | ---: | ---: |
+| Adelaide & Mount Lofty Ranges | 132,697 | 827,207 |
+| Fleurieu Peninsula & Kangaroo Island | 72,565 | 459,324 |
+| Yorke Peninsula & Mid North | 24,007 | 354,192 |
+| Eyre Peninsula | 12,332 | 367,835 |
+| Flinders Ranges & Far North | 9,170 | 349,163 |
+| Murraylands & Riverland | 20,513 | 294,707 |
+| Limestone Coast | 11,317 | 116,100 |
 
 ## Offline search and walking network
 
@@ -78,7 +124,7 @@ Installed v4 packages can provide:
 
 - offline place and POI search
 - offline trail/road search data
-- walking graph data for routing experiments
+- walking graph data for routing
 - graph merging across overlapping installed regions
 
 Routing is constrained by the downloaded walking graph. Trail Pocket must not invent a valid walking route where downloaded graph data does not support one.
@@ -137,24 +183,25 @@ On iPhone:
 2. Tap **Share**.
 3. Tap **Add to Home Screen**.
 4. Open Trail Pocket from the Home Screen.
-5. Download the required offline region(s) before leaving coverage.
-6. Test the exact downloaded map in Airplane Mode before relying on it outdoors.
+5. Open the offline package manager.
+6. Download an individual region or choose **South Australia / Download All**.
+7. Keep enough free storage available; the current seven-region package data is about 548 MB before local storage overhead.
+8. Test the downloaded map in Airplane Mode before relying on it outdoors.
 
 Do not open `index.html` directly from the Files app; Service Worker, modules, OPFS/IndexedDB and PWA behaviour require a proper HTTPS origin.
 
-## Required beta validation before v4.0 stable
+## Remaining beta validation before v4.0 stable
 
-Before promoting v4 to a stable release, the following still require real end-to-end validation:
+The production package infrastructure is complete. The remaining beta work is primarily real-device validation:
 
-- all seven South Australia production packages available from the production catalog
-- Download All behaviour
-- pause/resume after a network interruption
-- insufficient-storage handling
-- SHA-256 corruption detection and repair
+- full **South Australia / Download All** on a real iPhone
+- pause, close/reopen and resume during a real large download
+- insufficient-storage behaviour on iOS
+- deliberate corruption / repair flow on-device
 - cold restart in Airplane Mode
 - PMTiles reopening from OPFS after app restart
 - offline search with no network
-- walking graph across regional boundaries
+- walking route across regional overlap/boundaries
 - real iPhone GPS recording
 - screen-lock/app-switch gap behaviour
 - long-distance outdoor comparison walk
