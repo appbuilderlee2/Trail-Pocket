@@ -56,6 +56,24 @@ function setupOfflineLibraryLayout(){
  updateCount();window.addEventListener('trail:parks-changed',updateCount);
 }
 
+function setupBottomUiOffset(){
+ const apply=()=>{
+  const nav=document.querySelector('body>nav');
+  if(!nav||window.innerWidth>600){document.documentElement.style.removeProperty('--bottom-ui-offset');return;}
+  const rect=nav.getBoundingClientRect();
+  const viewportHeight=window.visualViewport?.height||window.innerHeight;
+  const obscured=Math.max(0,viewportHeight-rect.top);
+  document.documentElement.style.setProperty('--bottom-ui-offset',`${Math.ceil(obscured+14)}px`);
+ };
+ const schedule=()=>requestAnimationFrame(()=>requestAnimationFrame(apply));
+ schedule();
+ window.addEventListener('resize',schedule,{passive:true});
+ window.addEventListener('orientationchange',schedule,{passive:true});
+ window.visualViewport?.addEventListener('resize',schedule,{passive:true});
+ window.visualViewport?.addEventListener('scroll',schedule,{passive:true});
+ new ResizeObserver(schedule).observe(document.querySelector('body>nav'));
+}
+
 async function checkAppUpdate(){
  const button=$('checkAppUpdate'),status=$('updateCheckStatus');
  if(!button||!status)return;
@@ -121,5 +139,6 @@ export function setupUnifiedUI(ctx) {
  const downloadGuide=document.createElement('details');downloadGuide.className='settings-guide';downloadGuide.innerHTML='<summary>離線地圖格式及下載說明</summary>';for(const note of [...$('offlineView').querySelectorAll('.fineprint')])downloadGuide.append(note);$('settingsView').append(downloadGuide);
  for(const b of row.querySelectorAll('button'))b.textContent=b.textContent.replace(/^[＋✎▧]\s*/, '');for(const b of items.querySelectorAll('button'))b.textContent=b.textContent.replace(/^[☀⌁✎]\s*/, '');for(const [id,title]of [['settingsMapSource','地圖來源及 GeoPDF'],['settingsLayers','地圖圖層'],['settingsAlerts','偏离路線提醒']]){const b=$(id);b.querySelector('span').innerHTML=icon(id==='settingsMapSource'?'layers':id==='settingsLayers'?'map':'location');b.querySelector('i').innerHTML='<svg viewBox="0 0 24 24" aria-hidden="true" fill="none" stroke="currentColor" stroke-width="1.8"><path d="m9 5 7 7-7 7"/></svg>';}
  setupOfflineLibraryLayout();
+ setupBottomUiOffset();
  requestAnimationFrame(syncParkRows);
 }
