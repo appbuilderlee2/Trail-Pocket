@@ -1,3 +1,4 @@
+import './v41-enhancements.mjs';
 import { setupUnifiedUI as setupBaseUnifiedUI } from './unified-ui-base.mjs';
 import { OFFLINE_REGIONS } from './offline-regions.mjs';
 
