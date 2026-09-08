@@ -71,6 +71,10 @@ jobs:
             -H 'Range: bytes=0-1023' \
             -D /tmp/range-headers.txt \
             "$MAP_URL" -o /tmp/range.bin
+          echo "Range response bytes: $(wc -c < /tmp/range.bin)"
+          echo '--- response headers ---'
+          cat /tmp/range-headers.txt
+          echo '--- end headers ---'
           test "$(wc -c < /tmp/range.bin)" -eq 1024
           grep -Eqi '^content-range: bytes 0-1023/[0-9]+' /tmp/range-headers.txt
           grep -Eqi '^access-control-allow-origin: (\*|https://appbuilderlee2.github.io)' /tmp/range-headers.txt
