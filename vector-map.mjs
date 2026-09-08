@@ -30,7 +30,10 @@ export function tuneOutdoorStyle(map) {
 export class VectorBaseMap {
   constructor(container, status = () => {}) {
     this.container = container; this.status = status;
-    this.supported = Boolean(container && maplibregl.supported()); this.enabled = false;
+    // MapLibre GL JS 6 removed the old `supported()` helper from its ESM
+    // exports. create() is the real capability check and already falls back
+    // safely when WebGL/GPU initialization fails.
+    this.supported = Boolean(container && maplibregl.Map); this.enabled = false;
   }
   create() {
     if (this.map || !this.supported) return Boolean(this.map);
