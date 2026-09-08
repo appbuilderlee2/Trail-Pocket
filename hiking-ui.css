@@ -31,7 +31,7 @@
   #mapView .map-buttons{top:calc(66px + env(safe-area-inset-top));right:12px;gap:10px}
   #mapView .map-buttons button,#mapView .north{width:44px;height:44px;border-radius:50%}
   #mapView .position-status{top:calc(62px + env(safe-area-inset-top));bottom:auto;left:12px;max-width:calc(100% - 82px);font-size:10px;padding:6px 9px}
-  #mapView .activity-panel:not(.is-expanded){position:fixed;left:12px;right:12px;bottom:var(--bottom-ui-offset,112px);z-index:12;width:auto;max-width:none;margin:0;transform:none}
+  #mapView .activity-panel:not(.is-expanded){position:fixed;left:12px;right:12px;bottom:max(var(--bottom-ui-offset,112px),calc(108px + env(safe-area-inset-bottom)));z-index:12;width:auto;max-width:none;margin:0;transform:none}
   #mapView .activity-panel:not(.is-expanded):not(.has-activity){display:grid;grid-template-columns:minmax(0,1fr) 116px;align-items:center;gap:10px;max-height:88px;min-height:82px;padding:12px 14px;border:1px solid #e8ede6;border-radius:26px;background:#fff;box-shadow:0 6px 26px #193f3220}
   #mapView .activity-panel:not(.is-expanded):not(.has-activity) .activity-stats{display:grid!important;grid-template-columns:1fr 1fr;gap:4px;margin:0}
   #mapView .activity-panel:not(.is-expanded):not(.has-activity) .activity-stats>div{padding:0 5px}
