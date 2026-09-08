@@ -54,7 +54,6 @@ const ASSETS = [
   "./vendor/pmtiles.js",
   "./",
   "./index.html",
-  "./recovery.html",
   "./style.css",
   "./adventure.css",
   "./explore.css",
@@ -97,8 +96,8 @@ function safeBootHtml(response) {
           banner.classList.remove('hide');
           banner.textContent = 'App 啟動失敗：' + (error?.message || '主程式未能載入') + '。';
           const link = document.createElement('a');
-          link.href = './recovery.html?v=${APP_VERSION}&t=' + Date.now();
-          link.textContent = ' 修復 App';
+          link.href = './repair.html?t=' + Date.now();
+          link.textContent = ' 強制修復 App';
           link.style.fontWeight = '700';
           link.style.marginLeft = '8px';
           banner.append(link);
@@ -168,6 +167,9 @@ self.addEventListener("fetch", (e) => {
     !u.href.startsWith(self.registration.scope)
   )
     return;
+
+  if (u.pathname.endsWith("/repair.html")) return;
+
   const allowed = ASSETS.map(
     (p) => new URL(p, self.registration.scope).pathname,
   );
