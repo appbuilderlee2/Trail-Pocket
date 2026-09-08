@@ -353,16 +353,18 @@ export function setupExplore(ctx) {
       near = [...areas, ...routeMaps].filter((item) =>
         overlaps(item.bounds, bounds),
       ),
+      vectorPackages = ctx.getPackages?.()?.covering(bounds) || [],
+      offlineCount = near.length + vectorPackages.length,
       pdf = selectedPdf();
     $("mapSourceSummary").textContent =
-      (effectiveMode === "offline" && mode !== "geopdf" ? `離線組合 · ${near.length} 張` : sourceLabels[mode]) +
+      (effectiveMode === "offline" && mode !== "geopdf" ? `離線組合 · ${offlineCount} 個範圍` : sourceLabels[mode]) +
       (geoOverlay && mode !== "geopdf" ? " + GeoPDF" : "");
     $("sourceCoverage").textContent =
       mode === "geopdf"
         ? pdf
           ? `正在使用「${pdf.name}」；PDF、路線和 GPS 藍點均可離線顯示。`
           : "請先到離線下載匯入 GeoPDF。"
-        : `${effectiveMode === "offline" ? "目前使用離線地圖" : "目前使用線上地圖"} · 畫面有 ${near.length} 個已下載範圍` +
+        : `${effectiveMode === "offline" ? "目前使用離線地圖" : "目前使用線上地圖"} · 畫面有 ${offlineCount} 個已下載範圍` +
           (geoOverlay && pdf ? ` · 疊加「${pdf.name}」` : "");
   }
   async function saveSourceSettings() {
@@ -429,13 +431,15 @@ export function setupExplore(ctx) {
     } else {
       const b = map.viewBounds(),
         near = [...areas, ...routeMaps].filter((m) => overlaps(m.bounds, b)),
+        vectorPackages = ctx.getPackages?.()?.covering(b) || [],
+        nearCount = near.length + vectorPackages.length,
         old = near.some((m) => m.packageVersion < 3 || !m.integrity),
         noContours = near.some((m) => !m.terrain),
         fast = near.some((m) => m.terrain?.optional);
       $("exploreStatus").textContent =
         (navigator.onLine ? "離線優先" : "目前離線") +
-        ` · 畫面涵蓋 ${near.length} 個已下載範圍。` +
-        (near.some((m) => contains(m.bounds, b))
+        ` · 畫面涵蓋 ${nearCount} 個已下載範圍。` +
+        (near.some((m) => contains(m.bounds, b)) || vectorPackages.some((m) => contains({west:m.bounds[0],south:m.bounds[1],east:m.bounds[2],north:m.bounds[3]}, b))
           ? ""
           : "範圍外可能留白；可到「離線下載」開啟已儲存區域。") +
         (near.length
@@ -444,7 +448,11 @@ export function setupExplore(ctx) {
             : noContours
               ? " 其中有舊底圖未含等高線；重新下載即可加入。"
               : ` 已包含完整圖層、本機搜尋及步道路網${fast ? "；快速包未下載等高線。" : "及等高線。"}`
-          : "");
+          : vectorPackages.length
+            ? map.vector.enabled
+              ? " 已包含 PMTiles 向量圖、本機搜尋及步道路網。"
+              : " PMTiles 已下載，但此瀏覽器未能啟動向量引擎；GPS、路線及活動軌跡仍可顯示，底圖需改用支援 WebGL 的裝置。"
+            : "");
       $("retryTiles").classList.add("hide");
     }
     updateSourceUI();

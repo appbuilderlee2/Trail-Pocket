@@ -37,7 +37,7 @@ export function createBackup(data, now = Date.now(), options = {}) {
     format: BACKUP_FORMAT,
     version: BACKUP_VERSION,
     created: new Date(now).toISOString(),
-    appVersion: "4.0.0-beta.6",
+    appVersion: "4.0.0-beta.7",
     data: clean,
     offline: {
       packages: records(options.packages || [], "packages").map(({id,version,name,bounds}) => ({id,version,name,bounds})),
