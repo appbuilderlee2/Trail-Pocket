@@ -31,3 +31,38 @@ export function drawHeadingCone(ctx, origin, target) {
   fill.addColorStop(0, '#4285f4aa'); fill.addColorStop(1, '#4285f400');
   ctx.beginPath(); ctx.moveTo(0, 0); ctx.arc(0, 0, 65, -0.48, 0.48); ctx.closePath(); ctx.fillStyle = fill; ctx.fill(); ctx.restore();
 }
+
+// iOS PWA: keep the activity sheet outside transformed/scrolled map containers.
+// A fixed element inside those containers can otherwise become clipped or behave
+// like a half-screen panel. Portalling it beside the bottom nav makes viewport
+// positioning deterministic across Safari/PWA safe-area changes.
+function installActivityPortal() {
+  let panel = null;
+  const syncVisibility = (view) => {
+    if (!panel) return;
+    const mapVisible = view ? view === 'map' : !document.getElementById('mapView')?.classList.contains('hide');
+    panel.hidden = !mapVisible;
+  };
+  const portal = (candidate) => {
+    if (!candidate || candidate.dataset.activityPortal === 'body') return false;
+    panel = candidate;
+    const nav = document.querySelector('body > nav');
+    if (nav) document.body.insertBefore(panel, nav);
+    else document.body.append(panel);
+    panel.dataset.activityPortal = 'body';
+    syncVisibility();
+    return true;
+  };
+  if (!portal(document.querySelector('.activity-panel'))) {
+    const observer = new MutationObserver(() => {
+      if (portal(document.querySelector('.activity-panel'))) observer.disconnect();
+    });
+    observer.observe(document.body, { childList: true, subtree: true });
+  }
+  window.addEventListener('trail:view', event => syncVisibility(event.detail));
+}
+
+if (typeof document !== 'undefined' && typeof MutationObserver !== 'undefined') {
+  if (document.readyState === 'loading') document.addEventListener('DOMContentLoaded', installActivityPortal, { once: true });
+  else queueMicrotask(installActivityPortal);
+}
