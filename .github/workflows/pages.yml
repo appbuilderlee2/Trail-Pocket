@@ -42,7 +42,7 @@ jobs:
 
       - name: Prepare static PWA
         run: |
-          mkdir -p dist/assets dist/vendor dist/config
+          mkdir -p dist/assets dist/vendor dist/config dist/packages
           cp backup.mjs wake-lock.mjs heading.mjs reliability-core.mjs markers.mjs offline-download.mjs offline-search.mjs offline-regions.mjs package-search.mjs package-routing.mjs routing-core.mjs routing-client.mjs route-worker.mjs offline-package.mjs package-storage.mjs package-manifest.mjs package-downloader.mjs package-manager.mjs package-manager.css package-manager-controls.css sha256.mjs vector-map.mjs vector-map.css outdoor-style.mjs pmtiles-opfs.mjs activity.mjs activity-core.mjs activity.css geopdf.mjs geopdf-core.mjs geopdf-parser.mjs geopdf-render.mjs geopdf.css map-source.css index.html style.css adventure.css app.mjs core.mjs storage.mjs map.mjs adventure.mjs adventure-core.mjs explore.mjs explore-core.mjs online-map.mjs terrain.mjs explore.css sw.js manifest.webmanifest hiking-ui.css unified-ui.css unified-ui.mjs dist/
           cp vendor/pdf-lib.min.mjs vendor/pdf.min.mjs vendor/pdf.worker.min.mjs vendor/pdf-lib-LICENSE.md vendor/pdfjs-LICENSE dist/vendor/
           cp node_modules/maplibre-gl/dist/maplibre-gl.mjs node_modules/maplibre-gl/dist/maplibre-gl-shared.mjs node_modules/maplibre-gl/dist/maplibre-gl-worker.mjs node_modules/maplibre-gl/dist/maplibre-gl.css dist/vendor/
@@ -63,21 +63,35 @@ jobs:
           if [ -d pilot-data ]; then cp -R pilot-data dist/; fi
           touch dist/.nojekyll
 
-      - name: Validate production Range and browser CORS
+      - name: Mirror production packages for same-origin browser downloads
         run: |
-          MAP_URL=$(node -e "const x=require('./dist/config/sa-index.json');const p=x.packages.find(p=>p.files?.some(f=>f.name==='map.pmtiles'));const f=p?.files.find(f=>f.name==='map.pmtiles');if(!f?.url)process.exit(1);process.stdout.write(f.url)")
-          curl --silent --show-error --fail --location \
-            -H 'Origin: https://appbuilderlee2.github.io' \
-            -H 'Range: bytes=0-1023' \
-            -D /tmp/range-headers.txt \
-            "$MAP_URL" -o /tmp/range.bin
-          echo "Range response bytes: $(wc -c < /tmp/range.bin)"
-          echo '--- response headers ---'
-          cat /tmp/range-headers.txt
-          echo '--- end headers ---'
-          test "$(wc -c < /tmp/range.bin)" -eq 1024
-          grep -Eqi '^content-range: bytes 0-1023/[0-9]+' /tmp/range-headers.txt
-          grep -Eqi '^access-control-allow-origin: (\*|https://appbuilderlee2.github.io)' /tmp/range-headers.txt
+          node <<'NODE' > /tmp/package-files.tsv
+          const fs=require('fs');
+          const path='dist/config/sa-index.json';
+          const index=JSON.parse(fs.readFileSync(path,'utf8'));
+          if(index.schema!==1 || !Array.isArray(index.packages) || index.packages.length!==7) throw Error('Production catalog must contain exactly seven regions');
+          let total=0;
+          for(const pkg of index.packages){
+            if(!Array.isArray(pkg.files) || pkg.files.length!==3) throw Error(`${pkg.id}: expected three package files`);
+            for(const file of pkg.files){
+              const source=new URL(file.url);
+              const filename=source.pathname.split('/').pop();
+              if(!filename || !Number.isSafeInteger(file.size) || file.size<=0 || !/^[a-f0-9]{64}$/i.test(file.sha256)) throw Error(`${pkg.id}: invalid file metadata`);
+              total+=file.size;
+              process.stdout.write(`${file.url}\t${filename}\t${file.size}\t${file.sha256}\n`);
+              file.url=`./packages/${filename}`;
+            }
+          }
+          if(total>900*1024*1024) throw Error(`Production packages exceed Pages safety budget: ${total}`);
+          fs.writeFileSync(path,JSON.stringify(index,null,2)+'\n');
+          console.error(`Mirroring ${(total/1024/1024).toFixed(1)} MiB of production packages.`);
+          NODE
+          while IFS=$'\t' read -r url filename size sha; do
+            echo "Downloading $filename"
+            curl --fail --location --retry 4 --retry-all-errors --retry-delay 2 "$url" --output "dist/packages/$filename"
+            test "$(wc -c < "dist/packages/$filename")" -eq "$size"
+            echo "$sha  dist/packages/$filename" | sha256sum --check --status
+          done < /tmp/package-files.tsv
 
       - name: Upload Pages artifact
         uses: actions/upload-pages-artifact@v3
@@ -87,3 +101,17 @@ jobs:
       - name: Deploy to Pages
         id: deployment
         uses: actions/deploy-pages@v4
+
+      - name: Validate live same-origin Range delivery
+        run: |
+          BASE='${{ steps.deployment.outputs.page_url }}'
+          MAP_PATH=$(node -e "const x=require('./dist/config/sa-index.json');const p=x.packages.find(p=>p.files?.some(f=>f.name==='map.pmtiles'));const f=p?.files.find(f=>f.name==='map.pmtiles');if(!f?.url)process.exit(1);process.stdout.write(f.url.replace(/^\.\//,''))")
+          URL="${BASE}${MAP_PATH}"
+          curl --silent --show-error --fail \
+            -H 'Range: bytes=0-1023' \
+            -D /tmp/live-range-headers.txt \
+            "$URL" -o /tmp/live-range.bin
+          echo "Live Range response bytes: $(wc -c < /tmp/live-range.bin)"
+          cat /tmp/live-range-headers.txt
+          test "$(wc -c < /tmp/live-range.bin)" -eq 1024
+          grep -Eqi '^content-range: bytes 0-1023/[0-9]+' /tmp/live-range-headers.txt
