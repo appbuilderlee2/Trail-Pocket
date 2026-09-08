@@ -2,10 +2,25 @@ import './v41-enhancements.mjs';
 import { setupUnifiedUI as setupBaseUnifiedUI } from './unified-ui-base.mjs';
 import { OFFLINE_REGIONS } from './offline-regions.mjs';
 
+const APP_VERSION='4.1.1';
 const dispatchPreview=(bounds,label)=>window.dispatchEvent(new CustomEvent('trail:preview-bounds',{detail:{bounds,label}}));
+
+function syncVisibleVersion(){
+  const version=document.querySelector('.header-status .version');
+  if(version)version.textContent=`v${APP_VERSION}`;
+  const eyebrow=document.querySelector('#settingsView>.eyebrow');
+  if(eyebrow)eyebrow.textContent=`TRAIL POCKET · V${APP_VERSION}`;
+  const status=document.getElementById('updateCheckStatus');
+  if(status&&/目前版本|最新版本|v4\.1\.0/.test(status.textContent||''))status.textContent=`目前版本 v${APP_VERSION}`;
+}
 
 export function setupUnifiedUI(ctx){
   setupBaseUnifiedUI(ctx);
+  syncVisibleVersion();
+  queueMicrotask(syncVisibleVersion);
+  window.addEventListener('trail:view',syncVisibleVersion);
+  document.getElementById('checkAppUpdate')?.addEventListener('click',()=>setTimeout(syncVisibleVersion,9000));
+
   const list=document.getElementById('regionList');
   const parkByName=()=>new Map(OFFLINE_REGIONS.map(region=>[region.name,region]));
 
