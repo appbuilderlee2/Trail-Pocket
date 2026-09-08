@@ -93,6 +93,28 @@ jobs:
             echo "$sha  dist/packages/$filename" | sha256sum --check --status
           done < /tmp/package-files.tsv
 
+      - name: Validate real production search and routing data
+        run: |
+          node <<'NODE'
+          const fs=require('fs');
+          const index=JSON.parse(fs.readFileSync('dist/config/sa-index.json','utf8'));
+          for(const pkg of index.packages){
+            const byName=Object.fromEntries(pkg.files.map(file=>[file.name,file]));
+            const local=file=>`dist/${file.url.replace(/^\.\//,'')}`;
+            const search=JSON.parse(fs.readFileSync(local(byName['search.index']),'utf8'));
+            if(search.version!==1 || !Array.isArray(search.entries)) throw Error(`${pkg.id}: invalid search.index`);
+            for(const entry of search.entries.slice(0,1000)) {
+              if(!entry || typeof entry.name!=='string' || !Array.isArray(entry.point) || entry.point.length!==2 || !entry.point.every(Number.isFinite)) throw Error(`${pkg.id}: invalid search entry`);
+            }
+            const graph=JSON.parse(fs.readFileSync(local(byName['routing.graph']),'utf8'));
+            if(graph.version!==1 || !graph.nodes || typeof graph.nodes!=='object' || !graph.edges || typeof graph.edges!=='object') throw Error(`${pkg.id}: invalid routing.graph`);
+            const nodeCount=Object.keys(graph.nodes).length;
+            const edgeCount=Object.values(graph.edges).reduce((n,list)=>n+(Array.isArray(list)?list.length:0),0);
+            if(nodeCount<1 || edgeCount<1) throw Error(`${pkg.id}: empty walking graph`);
+            console.log(`${pkg.id}: ${search.entries.length} search entries, ${nodeCount} graph nodes, ${edgeCount} directed edges`);
+          }
+          NODE
+
       - name: Upload Pages artifact
         uses: actions/upload-pages-artifact@v3
         with:
@@ -107,10 +129,20 @@ jobs:
           BASE='${{ steps.deployment.outputs.page_url }}'
           MAP_PATH=$(node -e "const x=require('./dist/config/sa-index.json');const p=x.packages.find(p=>p.files?.some(f=>f.name==='map.pmtiles'));const f=p?.files.find(f=>f.name==='map.pmtiles');if(!f?.url)process.exit(1);process.stdout.write(f.url.replace(/^\.\//,''))")
           URL="${BASE}${MAP_PATH}"
-          curl --silent --show-error --fail \
-            -H 'Range: bytes=0-1023' \
-            -D /tmp/live-range-headers.txt \
-            "$URL" -o /tmp/live-range.bin
+          success=0
+          for attempt in $(seq 1 24); do
+            rm -f /tmp/live-range.bin /tmp/live-range-headers.txt
+            if curl --silent --show-error --fail \
+              -H 'Range: bytes=0-1023' \
+              -D /tmp/live-range-headers.txt \
+              "$URL" -o /tmp/live-range.bin; then
+              success=1
+              break
+            fi
+            echo "Live Pages package not propagated yet (attempt ${attempt}/24)."
+            sleep 5
+          done
+          test "$success" -eq 1
           echo "Live Range response bytes: $(wc -c < /tmp/live-range.bin)"
           cat /tmp/live-range-headers.txt
           test "$(wc -c < /tmp/live-range.bin)" -eq 1024
