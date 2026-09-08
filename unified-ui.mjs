@@ -1,7 +1,7 @@
 import { setupUnifiedUI as setupBaseUnifiedUI } from './unified-ui-base.mjs';
 import { OFFLINE_REGIONS } from './offline-regions.mjs';
 
-const APP_VERSION='4.1.4';
+const APP_VERSION='4.1.5';
 const dispatchPreview=(bounds,label)=>window.dispatchEvent(new CustomEvent('trail:preview-bounds',{detail:{bounds,label}}));
 
 function syncVisibleVersion(){
@@ -28,7 +28,7 @@ export function setupUnifiedUI(ctx){
     console.error('Trail Pocket unified UI failed; continuing with core UI',error);
   }
   syncVisibleVersion();
-  queueMicrotask(syncVisibleVersion);
+  if(typeof queueMicrotask==='function')queueMicrotask(syncVisibleVersion);else Promise.resolve().then(syncVisibleVersion);
   window.addEventListener('trail:view',syncVisibleVersion);
   document.getElementById('checkAppUpdate')?.addEventListener('click',()=>setTimeout(syncVisibleVersion,9000));
 
