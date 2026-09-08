@@ -16,12 +16,12 @@
 <main>
   <h1>Trail Pocket 修復</h1>
   <p>會強制重建 Trail Pocket App 外殼及 Service Worker。<b>不會清除 IndexedDB、OPFS、離線地圖、GPX／KML、活動或標記。</b></p>
-  <div id="status" class="status">準備修復至 v4.1.4…</div>
-  <div class="actions"><button id="retry" class="primary">重新修復</button><a class="secondary" href="./?recover=4.1.4">返回 Trail Pocket</a></div>
+  <div id="status" class="status">準備修復至 v4.1.5…</div>
+  <div class="actions"><button id="retry" class="primary">重新修復</button><a class="secondary" href="./?recover=4.1.5">返回 Trail Pocket</a></div>
 </main>
 <script>
 (() => {
-  const VERSION='4.1.4';
+  const VERSION='4.1.5';
   const status=document.getElementById('status');
   const retry=document.getElementById('retry');
   let redirected=false;
@@ -68,11 +68,7 @@
       say('3/4 正在重新安裝 v'+VERSION+'…');
       const sw='./sw.js?v='+encodeURIComponent(VERSION)+'&t='+Date.now();
       const reg=await navigator.serviceWorker.register(sw,{scope:'./',updateViaCache:'none'});
-      let worker=reg.installing || reg.waiting || reg.active;
-      if(reg.installing){
-        await waitForState(reg.installing,'installed');
-        worker=reg.waiting || reg.installing;
-      }
+      if(reg.installing)await waitForState(reg.installing,'installed');
       if(reg.waiting){
         say('4/4 新版已下載，正在啟用…');
         reg.waiting.postMessage({type:'UPDATE'});
@@ -80,7 +76,7 @@
       const deadline=Date.now()+25000;
       while(Date.now()<deadline){
         const fresh=await navigator.serviceWorker.getRegistration('./');
-        if(fresh?.active?.scriptURL?.includes('v='+encodeURIComponent(VERSION)) || fresh?.active){
+        if(fresh?.active){
           try{
             const ch=new MessageChannel();
             const ready=await new Promise(resolve=>{
