@@ -23,6 +23,13 @@ export function setupPackageManager(ctx){
   const state=id=>downloads.find(x=>x.id===id);
   const production=()=>PRODUCTION_IDS.map(id=>manifests.get(id)).filter(Boolean);
   const isCurrent=manifest=>installed.some(x=>x.id===manifest.id&&x.version===manifest.version&&x.state==='ready');
+  const availableFor=bounds=>production().filter(item=>overlap(item.bounds,bounds));
+  const installedFor=bounds=>installed.filter(item=>item.state==='ready'&&overlap(item.bounds,bounds));
+  const summary=item=>({id:item.id,version:item.version,name:item.name,bounds:item.bounds,bytes:packageBytes(item)});
+
+  function notify(){
+    window.dispatchEvent(new CustomEvent('trail:packages-changed'));
+  }
 
   function render(){
     const prod=production(),show=prod.length===7?prod:[...manifests.values()],currentCount=prod.filter(isCurrent).length,full=prod.length===7&&currentCount===7;
@@ -39,15 +46,17 @@ export function setupPackageManager(ctx){
     $('packageSummary').textContent=full?`南澳完整離線 · 7/7 已驗證`:prod.length===7?`${currentCount}/7 個地區已驗證 · 正式 production 目錄 · 下載後跨區自動拼合`:show.length?'測試／備用地圖包可用；正在等待正式南澳目錄':'未能取得地圖包目錄；已下載地圖仍可使用';
     $('downloadSouthAustralia').disabled=busy||prod.length!==7||full;
     $('downloadSouthAustralia').textContent=full?'已完整下載':'下載全部';
+    notify();
   }
 
   async function confirmDownload(rawItems,all){
-    if(busy)return;
+    if(busy)return false;
     const items=rawItems.filter(Boolean).filter(manifest=>!isCurrent(manifest));
-    if(!items.length){ctx.toast('所選地圖已經係最新版本。');return;}
+    if(!items.length){ctx.toast('所選地圖已經係最新版本。');return true;}
     const total=items.reduce((n,x)=>n+packageBytes(x),0),ok=await ctx.ask(all?'下載完整南澳？':'下載離線地圖？',`${items.length} 個地區，共 ${mb(total)}。大型下載建議使用 Wi‑Fi；會檢查空間、支援續傳，並逐檔做 SHA‑256 驗證。`,'開始下載');
-    if(!ok)return;
+    if(!ok)return false;
     busy=true;controller=new AbortController();render();$('packageProgress').classList.remove('hide');
+    let completed=false;
     try{
       let prior=0,startedAt=0,startedBytes=0;
       for(let i=0;i<items.length;i++){
@@ -60,9 +69,17 @@ export function setupPackageManager(ctx){
         }});
         prior+=packageBytes(manifest);
       }
+      completed=true;
       ctx.toast('離線地圖已下載並通過完整性驗證。');
     }catch(error){ctx.toast(error?.name==='AbortError'?'下載已暫停；下次會由現有進度繼續。':ctx.failure(error));}
     finally{busy=false;controller=null;downloads=await catalog.list('downloads');installed=await catalog.list('packages');$('packageProgress').classList.add('hide');render();ctx.changed?.();}
+    return completed;
+  }
+
+  async function downloadCovering(bounds){
+    const matches=availableFor(bounds);
+    if(!matches.length){ctx.toast('暫時未有正式南澳地圖包覆蓋呢個公園。');return false;}
+    return confirmDownload(matches,false);
   }
 
   $('downloadSouthAustralia').onclick=()=>confirmDownload(production(),true);
@@ -148,5 +165,15 @@ export function setupPackageManager(ctx){
     return {checked:installed.filter(x=>x.state==='ready').length+bad.length,bad};
   }
 
-  return {init,search,routingGraph,audit,updateIndex,covering:bounds=>installed.filter(item=>item.state==='ready'&&overlap(item.bounds,bounds)),listInstalled:()=>installed.filter(x=>x.state==='ready').map(({id,version,name,bounds})=>({id,version,name,bounds})),files:()=>files,pause:()=>controller?.abort(),refresh:async()=>{installed=await catalog.list('packages');downloads=await catalog.list('downloads');render();}};
+  const api={
+    init,search,routingGraph,audit,updateIndex,downloadCovering,
+    covering:bounds=>installedFor(bounds),
+    availableCovering:bounds=>availableFor(bounds).map(summary),
+    listInstalled:()=>installed.filter(x=>x.state==='ready').map(({id,version,name,bounds})=>({id,version,name,bounds})),
+    files:()=>files,
+    pause:()=>controller?.abort(),
+    refresh:async()=>{installed=await catalog.list('packages');downloads=await catalog.list('downloads');render();}
+  };
+  window.trailPocketPackages=api;
+  return api;
 }
