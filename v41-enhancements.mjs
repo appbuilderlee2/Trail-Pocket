@@ -1,11 +1,6 @@
 import * as store from './storage.mjs';
 
 const $ = id => document.getElementById(id);
-const once = (node, key) => {
-  if (!node || node.dataset[key]) return false;
-  node.dataset[key] = '1';
-  return true;
-};
 
 function installStyles(){
   if ($('v41EnhancementStyles')) return;
@@ -18,6 +13,31 @@ function installStyles(){
     .activity-record-actions{display:flex;gap:8px;flex-wrap:wrap;margin-top:12px}.activity-record-actions button{margin-top:0!important}
     .activity-delete{color:#9a382f;border-color:#e5c9c4;background:#fff7f5}
     .area-preview-hint{font-size:11px;color:var(--muted);margin-top:8px}
+
+    #settingsView>.settings-intro{margin:0 0 12px;font-size:12px;color:var(--muted)}
+    #settingsView .settings-card-head p{display:none}
+    #settingsView .settings-list button small{display:none}
+    #settingsView .settings-list button{min-height:54px}
+    #settingsView .settings-collapse{padding:0;margin:0;border:0;border-bottom:1px solid var(--border);background:#fff}
+    #settingsView .settings-collapse>summary{list-style:none;cursor:pointer;display:flex;align-items:center;justify-content:space-between;gap:12px;min-height:58px;padding:8px 2px;font-weight:750}
+    #settingsView .settings-collapse>summary::-webkit-details-marker{display:none}
+    #settingsView .settings-collapse>summary span{display:flex;flex-direction:column;gap:2px;min-width:0}
+    #settingsView .settings-collapse>summary b{font-size:17px}
+    #settingsView .settings-collapse>summary small{font-size:11px;font-weight:500;color:var(--muted);white-space:normal}
+    #settingsView .settings-collapse>summary:after{content:'›';font-size:25px;font-weight:400;color:var(--muted);transform:rotate(0deg);transition:transform .18s ease}
+    #settingsView .settings-collapse[open]>summary:after{transform:rotate(90deg)}
+    #settingsView .settings-collapse-content{padding:2px 0 18px}
+    #settingsView .settings-collapse-content>h2:first-child{display:none}
+    #settingsView .settings-collapse-content>.fineprint:first-of-type{margin-top:8px}
+    #settingsView .settings-help-collapse{margin:0;border-bottom:1px solid var(--border)}
+    #settingsView .settings-help-collapse>summary{font-size:16px}
+    #settingsView .settings-help-collapse .steps{margin:2px 0 16px;padding-left:24px}
+    #settingsView .settings-help-collapse .steps p{font-size:12px;line-height:1.55;margin:5px 0 12px}
+    #settingsView .settings-guide-title{display:none}
+    @media(max-width:600px){
+      #settingsView .settings-collapse>summary{min-height:56px}
+      #settingsView .settings-collapse>summary b{font-size:16px}
+    }
   `;
   document.head.append(style);
 }
@@ -45,6 +65,55 @@ function installSelectionPreview(){
       setTimeout(()=>frame.classList.remove('previewing'),1700);
     };
     row.insertBefore(b,$('saveArea'));
+  }
+}
+
+function collapseSettingsCard(card,subtitle='撳一下查看設定'){
+  if(!card||card.tagName==='DETAILS'||card.dataset.compacted==='1')return null;
+  const title=card.querySelector(':scope > h2')?.textContent?.trim() || card.querySelector(':scope > .settings-card-head h2')?.textContent?.trim();
+  if(!title)return null;
+  const details=document.createElement('details');
+  details.className=[...card.classList,'settings-collapse'].join(' ');
+  details.dataset.compacted='1';
+  const summary=document.createElement('summary');
+  summary.innerHTML=`<span><b>${title}</b><small>${subtitle}</small></span>`;
+  const content=document.createElement('div');content.className='settings-collapse-content';
+  while(card.firstChild)content.append(card.firstChild);
+  details.append(summary,content);
+  card.replaceWith(details);
+  return details;
+}
+
+function compactSettings(){
+  const view=$('settingsView');if(!view)return;
+  const intro=view.querySelector(':scope > .settings-intro');
+  if(intro)intro.textContent='常用設定直接顯示；其他選項及說明需要時再展開。';
+
+  for(const card of [...view.querySelectorAll(':scope > .settings-card')]){
+    if(card.dataset.compacted==='1'||card.tagName==='DETAILS')continue;
+    const title=card.querySelector(':scope > h2')?.textContent?.trim() || card.querySelector(':scope > .settings-card-head h2')?.textContent?.trim();
+    if(!title||['GPS 與位置','地圖與導航'].includes(title))continue;
+    const subtitle={
+      '方向與指南針':'方向感應及指南針選項',
+      '活動':'螢幕常亮及活動相關設定',
+      'App 與儲存':'更新及清理舊地圖',
+      '離線與本機資料':'等高線、備份、自檢及儲存',
+    }[title]||'撳一下查看設定';
+    collapseSettingsCard(card,subtitle);
+  }
+
+  const guideTitle=view.querySelector(':scope > .settings-guide-title');
+  const steps=view.querySelector(':scope > .steps');
+  if(steps&&!steps.closest('details')){
+    const details=document.createElement('details');
+    details.className='settings-guide settings-collapse settings-help-collapse';
+    details.dataset.compacted='1';
+    const summary=document.createElement('summary');
+    summary.innerHTML='<span><b>使用及安全說明</b><small>操作流程、離線使用及安全提醒</small></span>';
+    const content=document.createElement('div');content.className='settings-collapse-content';
+    content.append(steps);
+    if(guideTitle)guideTitle.replaceWith(details);else view.append(details);
+    details.append(summary,content);
   }
 }
 
@@ -113,16 +182,18 @@ async function enhanceActivityList(){
 function boot(){
   installStyles();
   installSelectionPreview();
+  compactSettings();
   enhanceAreaList();
   enhanceActivityList();
   const observer=new MutationObserver(()=>{
     installSelectionPreview();
+    compactSettings();
     enhanceAreaList();
     enhanceActivityList();
   });
   observer.observe(document.body,{childList:true,subtree:true});
   window.addEventListener('trail:view',()=>{
-    requestAnimationFrame(()=>{enhanceAreaList();enhanceActivityList();installSelectionPreview();});
+    requestAnimationFrame(()=>{enhanceAreaList();enhanceActivityList();installSelectionPreview();compactSettings();});
   });
 }
 
