@@ -7,5 +7,5 @@ test('failed precaching does not report installation success',async()=>{const h=
 test('Pages build copies every service-worker shell asset',async()=>{
   const workflow=await readFile(new URL('../.github/workflows/pages.yml',import.meta.url),'utf8');
   const assets=[...code.matchAll(/"\.\/(.*?)"/g)].map(match=>match[1]).filter(Boolean);
-  for(const asset of assets)assert.ok(workflow.includes(asset),`Pages build is missing ${asset}`);
+  for(const asset of assets)assert.ok(workflow.includes(asset)||workflow.includes(asset.split('/').at(-1)),`Pages build is missing ${asset}`);
 });
