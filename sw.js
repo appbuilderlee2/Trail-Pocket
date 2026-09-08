@@ -90,7 +90,7 @@ self.addEventListener("activate", (e) =>
         if (key.startsWith(PREFIX) && key !== VERSION) await caches.delete(key);
       await self.clients.claim();
     })(),
-  );
+  ),
 );
 self.addEventListener("message", (e) => {
   if (e.data?.type === "UPDATE") self.skipWaiting();
