@@ -1,3 +1,5 @@
+import { OFFLINE_REGIONS } from './offline-regions.mjs';
+
 const $ = id => document.getElementById(id);
 const paths = {
  map:'<path d="m3 6 6-3 6 3 6-3v15l-6 3-6-3-6 3V6Zm6-3v15m6-12v15"/>',
@@ -10,6 +12,33 @@ const paths = {
  more:'<circle cx="5" cy="12" r="1"/><circle cx="12" cy="12" r="1"/><circle cx="19" cy="12" r="1"/>',
 };
 const icon = name => `<svg viewBox="0 0 24 24" aria-hidden="true" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round">${paths[name]}</svg>`;
+const parkByName = new Map(OFFLINE_REGIONS.map(region => [region.name, region]));
+
+function syncParkRows(){
+ const api=window.trailPocketPackages,list=$('regionList');
+ if(!api||!list)return;
+ for(const row of list.querySelectorAll('.region-row')){
+  const name=row.querySelector('h3')?.textContent?.trim(),region=parkByName.get(name),action=row.querySelector('button');
+  if(!region||!action)continue;
+  const installed=api.covering?.(region.bounds)||[],available=api.availableCovering?.(region.bounds)||[];
+  const state=row.querySelector('.region-state'),meta=[...row.children].find(el=>el.tagName==='SPAN'&&!el.classList.contains('region-state'));
+  if(installed.length){
+   if(state){state.textContent='✓';state.classList.add('saved');}
+   if(meta)meta.textContent=`已由 ${installed.map(x=>x.name).join(' + ')} 覆蓋`;
+   if(action.textContent!=='開啟'){
+    action.textContent='已涵蓋';
+    action.disabled=true;
+    action.dataset.packageCovered='1';
+   }
+  }else if(available.length&&action.textContent!=='開啟'){
+   if(meta)meta.textContent=`使用正式區域包 · ${available.map(x=>x.name).join(' + ')}`;
+   action.textContent='下載';
+   action.disabled=false;
+   action.dataset.packageDownload='1';
+  }
+ }
+}
+
 export function setupUnifiedUI(ctx) {
  const heading=document.createElement('section');heading.id='libraryHeader';heading.className='library-header hide';
  heading.innerHTML='<h1>我的</h1><div class="library-tabs" role="tablist" aria-label="我的分類"><button id="myRoutes" role="tab" aria-selected="true">路線</button><button id="myMaps" role="tab" aria-selected="false">離線地圖</button><button id="myActivities" role="tab" aria-selected="false">活動</button><button id="myMarkers" role="tab" aria-selected="false">標記</button></div>';
@@ -20,7 +49,20 @@ export function setupUnifiedUI(ctx) {
   heading.classList.toggle('hide',!['routes','offline','history','markers'].includes(name));
   for(const [id,view] of [['myRoutes','routes'],['myMaps','offline'],['myActivities','history'],['myMarkers','markers']]) $(id).setAttribute('aria-selected',String(view===name));
   $('mapToolMenu')?.removeAttribute('open');
+  if(name==='offline')requestAnimationFrame(syncParkRows);
  });
+ window.addEventListener('trail:packages-changed',()=>requestAnimationFrame(syncParkRows));
+ const parkObserver=new MutationObserver(()=>requestAnimationFrame(syncParkRows));
+ if($('regionList'))parkObserver.observe($('regionList'),{childList:true});
+ $('regionList')?.addEventListener('click',async event=>{
+  const action=event.target.closest('.region-row button');
+  if(!action||action.textContent==='開啟'||action.dataset.packageCovered==='1')return;
+  const row=action.closest('.region-row'),region=parkByName.get(row?.querySelector('h3')?.textContent?.trim()),api=window.trailPocketPackages;
+  if(!region||!api?.availableCovering?.(region.bounds)?.length)return;
+  event.preventDefault();event.stopImmediatePropagation();
+  action.disabled=true;
+  try{await api.downloadCovering(region.bounds);}finally{action.disabled=false;requestAnimationFrame(syncParkRows);}
+ },true);
  for(const [tab,svg,label] of [['explore','map','地圖'],['saved','saved','我的'],['settings','settings','設定']]){
   const b=document.querySelector(`nav button[data-tab="${tab}"]`);b.innerHTML=icon(svg)+`<span>${label}</span>`;b.setAttribute('aria-label',label);
  }
@@ -51,4 +93,5 @@ export function setupUnifiedUI(ctx) {
  for(const [id,title]of [['settingsMapSource','地圖來源及 GeoPDF'],['settingsLayers','地圖圖層'],['settingsAlerts','偏离路線提醒']]){
   const b=$(id);b.querySelector('span').innerHTML=icon(id==='settingsMapSource'?'layers':id==='settingsLayers'?'map':'location');b.querySelector('i').innerHTML='<svg viewBox="0 0 24 24" aria-hidden="true" fill="none" stroke="currentColor" stroke-width="1.8"><path d="m9 5 7 7-7 7"/></svg>';
  }
+ requestAnimationFrame(syncParkRows);
 }
