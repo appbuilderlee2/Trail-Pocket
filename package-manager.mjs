@@ -5,7 +5,7 @@ import { searchPackageEntries } from './package-search.mjs';
 import { mergePackageGraphs } from './package-routing.mjs';
 import { sha256File } from './sha256.mjs';
 
-const PRODUCTION_URL='https://github.com/appbuilderlee2/Trail-Pocket/releases/download/maps-v4-current/sa-index.json';
+const RELEASE_INDEX_URL='https://github.com/appbuilderlee2/Trail-Pocket/releases/download/maps-v4-current/sa-index.json';
 const LOCAL_URL='./config/sa-index.json';
 const PILOT_URL='https://github.com/appbuilderlee2/Trail-Pocket/releases/download/maps-v4-pilot/sa-index.json';
 const PRODUCTION_IDS=['adelaide-mount-lofty','fleurieu-kangaroo-island','yorke-mid-north','eyre-peninsula','flinders-far-north','murraylands-riverland','limestone-coast'];
@@ -81,8 +81,7 @@ export function setupPackageManager(ctx){
       if(!response.ok)throw Error(`HTTP ${response.status}`);
       const index=await response.json();
       if(index.schema!==1||!Array.isArray(index.packages))throw Error('地圖包目錄格式無效');
-      const valid=index.packages.map(validatePackageManifest);
-      return valid;
+      return index.packages.map(validatePackageManifest);
     }finally{clearTimeout(timer);}
   }
 
@@ -91,24 +90,24 @@ export function setupPackageManager(ctx){
   async function updateIndex(){
     let productionLoaded=false;
     try{
-      const list=await loadIndex(PRODUCTION_URL,12000),prod=list.filter(x=>PRODUCTION_IDS.includes(x.id));
-      if(prod.length!==7)throw Error(`正式南澳目錄不完整（${prod.length}/7）`);
-      await saveManifests(prod);productionLoaded=true;indexSource='production';render();
-    }catch(error){console.warn('Trail Pocket production catalog unavailable',error);}
+      const list=await loadIndex(LOCAL_URL,6000),prod=list.filter(x=>PRODUCTION_IDS.includes(x.id));
+      if(prod.length===7){await saveManifests(prod);productionLoaded=true;indexSource='same-origin-production';render();}
+      else if(!manifests.size){await saveManifests(list);indexSource='local-fallback';render();}
+    }catch(error){console.warn('Trail Pocket same-origin catalog unavailable',error);}
 
     if(!productionLoaded){
       try{
-        const list=await loadIndex(LOCAL_URL,4000),prod=list.filter(x=>PRODUCTION_IDS.includes(x.id));
-        if(prod.length===7){await saveManifests(prod);productionLoaded=true;indexSource='local-production';render();}
-        else if(!manifests.size){await saveManifests(list);indexSource='local-fallback';render();}
-      }catch(error){console.warn('Trail Pocket local catalog unavailable',error);}
+        const list=await loadIndex(RELEASE_INDEX_URL,10000),prod=list.filter(x=>PRODUCTION_IDS.includes(x.id));
+        if(prod.length!==7)throw Error(`正式南澳目錄不完整（${prod.length}/7）`);
+        await saveManifests(prod);productionLoaded=true;indexSource='release-production';render();
+      }catch(error){console.warn('Trail Pocket release catalog unavailable',error);}
     }
 
+    if(!productionLoaded&&production().length===7){productionLoaded=true;indexSource='saved-production';render();}
     if(!productionLoaded&&!production().length){
-      try{await saveManifests(await loadIndex(PILOT_URL,10000));indexSource='pilot';render();}
+      try{await saveManifests(await loadIndex(PILOT_URL,8000));indexSource='pilot';render();}
       catch(error){console.warn('Trail Pocket pilot catalog unavailable',error);}
     }
-    if(!productionLoaded&&production().length===7)productionLoaded=true;
     return {production:productionLoaded,source:indexSource,count:production().length};
   }
 
