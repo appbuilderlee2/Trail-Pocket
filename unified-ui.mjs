@@ -37,6 +37,25 @@ function syncParkRows(){
  }
 }
 
+function setupOfflineLibraryLayout(){
+ const offline=$('offlineView'),pkg=offline?.querySelector('.package-library'),parks=offline?.querySelector('.region-library');
+ if(!offline||!pkg||!parks)return;
+ pkg.classList.add('statewide-library');
+ let collapse=$('parkLibraryCollapse');
+ if(!collapse){
+  collapse=document.createElement('details');collapse.id='parkLibraryCollapse';collapse.className='park-library-collapse';
+  const summary=document.createElement('summary');
+  summary.innerHTML='<span><b>南澳公園快捷範圍</b><small id="parkLibraryCount"></small></span><i>展開</i>';
+  parks.before(collapse);collapse.append(summary,parks);
+  collapse.addEventListener('toggle',()=>{summary.querySelector('i').textContent=collapse.open?'收起':'展開';});
+ }
+ const heading=offline.querySelector('.heading');if(heading)heading.after(pkg);pkg.after(collapse);
+ const regionTitle=parks.querySelector('.region-title h2');if(regionTitle)regionTitle.textContent='公園及保護區';
+ const regionBack=$('regionBack');if(regionBack)regionBack.hidden=true;
+ const updateCount=()=>{const count=$('parkLibraryCount');if(count)count.textContent=`${OFFLINE_REGIONS.length.toLocaleString()} 個公園／保護區 · 可搜尋，需要時先展開`;};
+ updateCount();window.addEventListener('trail:parks-changed',updateCount);
+}
+
 async function checkAppUpdate(){
  const button=$('checkAppUpdate'),status=$('updateCheckStatus');
  if(!button||!status)return;
@@ -101,5 +120,6 @@ export function setupUnifiedUI(ctx) {
  const appCard=document.createElement('section');appCard.className='settings-card';appCard.innerHTML=`<h2>App 與儲存</h2><p>Trail Pocket v4.1 會檢查 PWA 更新，亦可安全清走已被正式南澳地圖完整覆蓋嘅舊式離線包。</p><div class="settings-list"><button id="checkAppUpdate"><span>${icon('refresh')}</span><b>檢查更新</b><small id="updateCheckStatus">目前版本 v4.1.0</small><i>›</i></button><button id="cleanupLegacyMaps"><span>${icon('trash')}</span><b>清理重複舊地圖</b><small id="cleanupLegacyStatus">保留 GPX／KML、活動、標記、GeoPDF 及有等高線嘅自訂地圖</small><i>›</i></button></div>`;const storageCard=document.querySelector('#settingsView .settings-storage');storageCard?.before(appCard);$('checkAppUpdate').onclick=checkAppUpdate;$('cleanupLegacyMaps').onclick=cleanupLegacyMaps;
  const downloadGuide=document.createElement('details');downloadGuide.className='settings-guide';downloadGuide.innerHTML='<summary>離線地圖格式及下載說明</summary>';for(const note of [...$('offlineView').querySelectorAll('.fineprint')])downloadGuide.append(note);$('settingsView').append(downloadGuide);
  for(const b of row.querySelectorAll('button'))b.textContent=b.textContent.replace(/^[＋✎▧]\s*/, '');for(const b of items.querySelectorAll('button'))b.textContent=b.textContent.replace(/^[☀⌁✎]\s*/, '');for(const [id,title]of [['settingsMapSource','地圖來源及 GeoPDF'],['settingsLayers','地圖圖層'],['settingsAlerts','偏离路線提醒']]){const b=$(id);b.querySelector('span').innerHTML=icon(id==='settingsMapSource'?'layers':id==='settingsLayers'?'map':'location');b.querySelector('i').innerHTML='<svg viewBox="0 0 24 24" aria-hidden="true" fill="none" stroke="currentColor" stroke-width="1.8"><path d="m9 5 7 7-7 7"/></svg>';}
+ setupOfflineLibraryLayout();
  requestAnimationFrame(syncParkRows);
 }
