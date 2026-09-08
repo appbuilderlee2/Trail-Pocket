@@ -8,6 +8,7 @@ on:
       - 'config/sa-regions.json'
       - 'scripts/build-package-indexes.mjs'
       - 'scripts/write-package-manifest.mjs'
+      - 'package-index-core.mjs'
   workflow_dispatch:
     inputs:
       scope:
@@ -23,6 +24,10 @@ on:
 
 permissions:
   contents: write
+
+concurrency:
+  group: south-australia-offline-packages
+  cancel-in-progress: true
 
 jobs:
   prepare:

@@ -1,9 +1,9 @@
 import { createReadStream, createWriteStream } from 'node:fs';
 import { createInterface } from 'node:readline';
+import { isWalkable, walkingCost } from '../package-index-core.mjs';
 
 const [input, searchOutput, graphOutput] = process.argv.slice(2);
 if (!input || !searchOutput || !graphOutput) throw Error('usage: build-package-indexes input.geojsonseq search.index routing.graph');
-const walkable = new Set(['path','footway','track','steps','bridleway','pedestrian','living_street','residential','service','unclassified','tertiary']);
 const poiTags = new Set(['parking','toilets','drinking_water','shelter','camp_site','viewpoint','information','trailhead','peak']);
 const categoryName={parking:'停車場',toilets:'洗手間',drinking_water:'飲用水',shelter:'避雨亭',camp_site:'營地',viewpoint:'觀景點',information:'資訊牌',trailhead:'行山入口',peak:'山峰'};
 const nodes=[], edges=[], nodeIds=new Map(), search=[];
@@ -17,9 +17,9 @@ for await (let line of createInterface({input:createReadStream(input),crlfDelay:
   const feature=JSON.parse(line), t=tags(feature), p=center(feature.geometry), name=t['name:zh']||t['name:en']||t.name;
   const kind=t.amenity||t.tourism||t.information||t.natural||t.highway||t.place||t.leisure, display=name||categoryName[kind];
   if(p&&display&&(kind||t.boundary)) search.push({n:display,e:t['name:en']||'',z:t['name:zh']||'',p:[+p[0].toFixed(6),+p[1].toFixed(6)],t:poiTags.has(kind)?kind:(t.place||'place')});
-  if(feature.geometry?.type==='LineString'&&walkable.has(t.highway)&&!['private','no'].includes(t.access)&&t.foot!=='no') {
+  if(feature.geometry?.type==='LineString'&&isWalkable(t)) {
     const points=feature.geometry.coordinates;
-    for(let i=1;i<points.length;i++){const d=distance(points[i-1],points[i]);if(d>0&&d<5000){const a=nodeId(points[i-1]),b=nodeId(points[i]),w=Math.round(d);edges.push([a,b,w],[b,a,w]);}}
+    for(let i=1;i<points.length;i++){const d=distance(points[i-1],points[i]);if(d>0&&d<5000){const a=nodeId(points[i-1]),b=nodeId(points[i]),w=Math.round(d*walkingCost(t));edges.push([a,b,w],[b,a,w]);}}
   }
 }
 const write=(path,value)=>new Promise((resolve,reject)=>{const out=createWriteStream(path);out.on('error',reject);out.on('finish',resolve);out.end(JSON.stringify(value));});
