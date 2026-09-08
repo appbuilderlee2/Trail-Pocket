@@ -265,6 +265,7 @@ test("all new static modules deploy and precache, online tiles are not precached
   }
   assert.equal(sw.includes("tile.openstreetmap.org"), false);
   assert.ok(workflow.includes("config/sa-index.json"));
+  assert.ok(workflow.includes("pilot-data"));
   const areaCode = await readFile(
     new URL("../explore.mjs", import.meta.url),
     "utf8",

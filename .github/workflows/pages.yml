@@ -47,6 +47,7 @@ jobs:
           cp node_modules/pmtiles/dist/pmtiles.js dist/vendor/pmtiles.js
           cp assets/icon-192.png assets/icon-512.png assets/devils-route.json assets/devils-base.json dist/assets/
           cp config/sa-index.json dist/config/
+          if [ -d pilot-data ]; then cp -R pilot-data dist/; fi
           touch dist/.nojekyll
 
       - name: Upload Pages artifact

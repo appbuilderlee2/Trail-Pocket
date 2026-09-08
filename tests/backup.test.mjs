@@ -22,7 +22,7 @@ test("v2 backup keeps personal data, references offline maps and excludes active
     restored = validateBackup(JSON.parse(JSON.stringify(backup)));
   assert.equal(backup.format, BACKUP_FORMAT);
   assert.equal(backup.version, 2);
-  assert.equal(backup.appVersion, "4.0.0-beta.5");
+  assert.equal(backup.appVersion, "4.0.0-beta.6");
   assert.equal(backup.created, "1970-01-01T00:00:00.000Z");
   assert.deepEqual(backupCounts(restored), {
     routes: 1,
