@@ -63,6 +63,18 @@ jobs:
           if [ -d pilot-data ]; then cp -R pilot-data dist/; fi
           touch dist/.nojekyll
 
+      - name: Validate production Range and browser CORS
+        run: |
+          MAP_URL=$(node -e "const x=require('./dist/config/sa-index.json');const p=x.packages.find(p=>p.files?.some(f=>f.name==='map.pmtiles'));const f=p?.files.find(f=>f.name==='map.pmtiles');if(!f?.url)process.exit(1);process.stdout.write(f.url)")
+          curl --silent --show-error --fail --location \
+            -H 'Origin: https://appbuilderlee2.github.io' \
+            -H 'Range: bytes=0-1023' \
+            -D /tmp/range-headers.txt \
+            "$MAP_URL" -o /tmp/range.bin
+          test "$(wc -c < /tmp/range.bin)" -eq 1024
+          grep -Eqi '^content-range: bytes 0-1023/[0-9]+' /tmp/range-headers.txt
+          grep -Eqi '^access-control-allow-origin: (\*|https://appbuilderlee2.github.io)' /tmp/range-headers.txt
+
       - name: Upload Pages artifact
         uses: actions/upload-pages-artifact@v3
         with:
