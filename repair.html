@@ -1,0 +1,87 @@
+<!doctype html>
+<html lang="zh-Hant">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover" />
+  <meta name="theme-color" content="#193f32" />
+  <title>Trail Pocket 強制修復</title>
+  <style>
+    :root{font-family:-apple-system,BlinkMacSystemFont,"Segoe UI",sans-serif;color:#153f32;background:#f7f8f3}
+    body{margin:0;min-height:100vh;display:grid;place-items:center;padding:24px;box-sizing:border-box}
+    main{width:min(520px,100%);background:#fff;border:1px solid #dfe5dc;border-radius:24px;padding:24px;box-sizing:border-box;box-shadow:0 18px 50px rgba(20,53,39,.08)}
+    h1{margin:0 0 8px;font-size:28px}p{line-height:1.55;color:#52685f}.status{padding:14px;border-radius:14px;background:#eef4e8;margin:16px 0;white-space:pre-line}.actions{display:flex;gap:10px;flex-wrap:wrap}button,a{appearance:none;border:0;border-radius:14px;padding:13px 16px;font:inherit;font-weight:700;text-decoration:none}.primary{background:#184c3b;color:#fff}.secondary{background:#edf2ea;color:#184c3b}
+  </style>
+</head>
+<body>
+<main>
+  <h1>Trail Pocket 強制修復</h1>
+  <p>目標版本 <b>v4.1.4</b>。只會重建 PWA App 外殼及 Service Worker；<b>不會刪除 IndexedDB、OPFS、GPX／KML、活動、標記或離線地圖。</b></p>
+  <div id="status" class="status">準備修復…</div>
+  <div class="actions"><button id="repair" class="primary">開始修復</button><a class="secondary" href="./">返回 Trail Pocket</a></div>
+</main>
+<script>
+(() => {
+  const VERSION='4.1.4';
+  const PREFIX='trail-pocket-shell:';
+  const status=document.getElementById('status');
+  const button=document.getElementById('repair');
+  const say=text=>status.textContent=text;
+  const delay=ms=>new Promise(r=>setTimeout(r,ms));
+
+  async function waitForInstall(reg){
+    if(reg.waiting){reg.waiting.postMessage({type:'UPDATE'});return;}
+    const worker=reg.installing;
+    if(!worker)return;
+    await new Promise((resolve,reject)=>{
+      const timer=setTimeout(()=>reject(new Error('新版 Service Worker 安裝逾時')),30000);
+      const check=()=>{
+        if(worker.state==='installed'){clearTimeout(timer);resolve();}
+        else if(worker.state==='redundant'){clearTimeout(timer);reject(new Error('新版 Service Worker 安裝失敗'));}
+      };
+      worker.addEventListener('statechange',check);check();
+    });
+    if(reg.waiting)reg.waiting.postMessage({type:'UPDATE'});
+  }
+
+  async function repair(){
+    button.disabled=true;
+    try{
+      if(!('serviceWorker' in navigator))throw new Error('此瀏覽器不支援 Service Worker');
+      say('1/4 正在解除舊 Service Worker…');
+      const regs=await navigator.serviceWorker.getRegistrations();
+      const scope=new URL('./',location.href).href;
+      await Promise.all(regs.filter(r=>r.scope.startsWith(scope)).map(r=>r.unregister()));
+
+      say('2/4 正在刪除舊 App 外殼 cache…\n個人資料及離線地圖不會刪除。');
+      if('caches' in window){
+        const keys=await caches.keys();
+        await Promise.all(keys.filter(k=>k.startsWith(PREFIX)).map(k=>caches.delete(k)));
+      }
+      await delay(250);
+
+      say('3/4 正在重新下載 v'+VERSION+' App 外殼…');
+      const reg=await navigator.serviceWorker.register('./sw.js?force='+Date.now(),{scope:'./',updateViaCache:'none'});
+      try{await reg.update();}catch{}
+      await waitForInstall(reg);
+
+      say('4/4 正在啟用 v'+VERSION+'…');
+      if(reg.waiting)reg.waiting.postMessage({type:'UPDATE'});
+      await Promise.race([
+        new Promise(resolve=>navigator.serviceWorker.addEventListener('controllerchange',resolve,{once:true})),
+        delay(5000)
+      ]);
+
+      say('修復完成。正在開啟 v'+VERSION+'…');
+      location.replace('./?force='+Date.now()+'&version='+VERSION);
+    }catch(error){
+      console.error(error);
+      say('修復未完成：'+(error?.message||String(error))+'\n\n請再按一次「開始修復」。');
+      button.disabled=false;
+    }
+  }
+  button.addEventListener('click',repair);
+  repair();
+})();
+</script>
+</body>
+</html>
