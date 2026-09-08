@@ -4,6 +4,7 @@
   <meta charset="utf-8" />
   <meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover" />
   <meta name="theme-color" content="#193f32" />
+  <meta http-equiv="cache-control" content="no-store" />
   <title>Trail Pocket 強制修復</title>
   <style>
     :root{font-family:-apple-system,BlinkMacSystemFont,"Segoe UI",sans-serif;color:#153f32;background:#f7f8f3}
@@ -15,18 +16,26 @@
 <body>
 <main>
   <h1>Trail Pocket 強制修復</h1>
-  <p>目標版本 <b>v4.1.4</b>。只會重建 PWA App 外殼及 Service Worker；<b>不會刪除 IndexedDB、OPFS、GPX／KML、活動、標記或離線地圖。</b></p>
-  <div id="status" class="status">準備修復…</div>
-  <div class="actions"><button id="repair" class="primary">開始修復</button><a class="secondary" href="./">返回 Trail Pocket</a></div>
+  <p>會自動安裝伺服器上最新正式版本。只會重建 PWA App 外殼及 Service Worker；<b>不會刪除 IndexedDB、OPFS、GPX／KML、活動、標記或離線地圖。</b></p>
+  <div id="status" class="status">準備檢查最新版本…</div>
+  <div class="actions"><button id="repair" class="primary">開始修復</button><a class="secondary" href="./?recover=1">返回 Trail Pocket</a></div>
 </main>
 <script>
 (() => {
-  const VERSION='4.1.4';
   const PREFIX='trail-pocket-shell:';
   const status=document.getElementById('status');
   const button=document.getElementById('repair');
   const say=text=>status.textContent=text;
   const delay=ms=>new Promise(r=>setTimeout(r,ms));
+
+  async function latestWorker(){
+    const url='./sw.js?repair='+Date.now();
+    const response=await fetch(url,{cache:'no-store'});
+    if(!response.ok)throw new Error('未能下載最新 Service Worker');
+    const source=await response.text();
+    const match=source.match(/APP_VERSION\s*=\s*["']([^"']+)["']/) || source.match(/v(\d+\.\d+\.\d+)/);
+    return {url,version:match?.[1]||'最新版本'};
+  }
 
   async function waitForInstall(reg){
     if(reg.waiting){reg.waiting.postMessage({type:'UPDATE'});return;}
@@ -47,6 +56,9 @@
     button.disabled=true;
     try{
       if(!('serviceWorker' in navigator))throw new Error('此瀏覽器不支援 Service Worker');
+      say('正在確認伺服器最新版本…');
+      const latest=await latestWorker();
+
       say('1/4 正在解除舊 Service Worker…');
       const regs=await navigator.serviceWorker.getRegistrations();
       const scope=new URL('./',location.href).href;
@@ -57,25 +69,25 @@
         const keys=await caches.keys();
         await Promise.all(keys.filter(k=>k.startsWith(PREFIX)).map(k=>caches.delete(k)));
       }
-      await delay(250);
+      await delay(300);
 
-      say('3/4 正在重新下載 v'+VERSION+' App 外殼…');
-      const reg=await navigator.serviceWorker.register('./sw.js?force='+Date.now(),{scope:'./',updateViaCache:'none'});
+      say('3/4 正在重新下載 '+latest.version+' App 外殼…');
+      const reg=await navigator.serviceWorker.register(latest.url,{scope:'./',updateViaCache:'none'});
       try{await reg.update();}catch{}
       await waitForInstall(reg);
 
-      say('4/4 正在啟用 v'+VERSION+'…');
+      say('4/4 正在啟用 '+latest.version+'…');
       if(reg.waiting)reg.waiting.postMessage({type:'UPDATE'});
       await Promise.race([
         new Promise(resolve=>navigator.serviceWorker.addEventListener('controllerchange',resolve,{once:true})),
         delay(5000)
       ]);
 
-      say('修復完成。正在開啟 v'+VERSION+'…');
-      location.replace('./?force='+Date.now()+'&version='+VERSION);
+      say('修復完成。正在重新開啟 Trail Pocket '+latest.version+'…');
+      location.replace('./?recover=1&t='+Date.now());
     }catch(error){
       console.error(error);
-      say('修復未完成：'+(error?.message||String(error))+'\n\n請再按一次「開始修復」。');
+      say('修復未完成：'+(error?.message||String(error))+'\n\n請保持網絡連線，再按一次「開始修復」。');
       button.disabled=false;
     }
   }
