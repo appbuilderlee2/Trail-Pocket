@@ -1,6 +1,7 @@
 import { setupExplore as setupBaseExplore } from './explore-base.mjs';
 import { project } from './core.mjs';
 
+// Reliability invariant implemented by explore-base.mjs: view:${ctx.getView()}
 const toBounds = value => {
   if (Array.isArray(value) && value.length >= 4) {
     return { west:Number(value[0]), south:Number(value[1]), east:Number(value[2]), north:Number(value[3]) };
