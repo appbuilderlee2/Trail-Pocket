@@ -1,4 +1,4 @@
-import { openPackageCatalog, openPackageFiles, packageCatalog } from './package-storage.mjs';
+import { openPackageCatalog, openPackageFiles, packageCatalog, recordPackageMigration } from './package-storage.mjs';
 import { downloadPackage, repairPackage } from './package-downloader.mjs';
 import { localPackageFile, packageBytes, validatePackageManifest } from './package-manifest.mjs';
 import { searchPackageEntries } from './package-search.mjs';
@@ -67,6 +67,7 @@ export function setupPackageManager(ctx) {
   async function init(){
     try{
       db=await openPackageCatalog(); catalog=packageCatalog(db); files=await openPackageFiles();
+      await recordPackageMigration(catalog);
       [installed,downloads]=await Promise.all([catalog.list('packages'),catalog.list('downloads')]);
       for(const saved of await catalog.list('manifests'))try{manifests.set(saved.id,validatePackageManifest(saved));}catch{}
     }catch(error){$('packageSummary').textContent=error.message.includes('未支援')?error.message:'未能更新地圖包目錄；已下載地圖仍可使用';}

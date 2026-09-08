@@ -1,7 +1,7 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import { IDBFactory } from 'fake-indexeddb';
-import { openPackageCatalog, openPackageFiles } from '../package-storage.mjs';
+import { openPackageCatalog, openPackageFiles, packageCatalog, recordPackageMigration } from '../package-storage.mjs';
 
 test('v4 catalog is isolated from the v3 rollback database', async () => {
   const factory = new IDBFactory();
@@ -15,7 +15,7 @@ test('v4 catalog is isolated from the v3 rollback database', async () => {
     r.onerror = () => reject(r.error);
   });
   const catalog = await openPackageCatalog(factory, '/test/');
-  assert.deepEqual([...catalog.objectStoreNames], ['downloads','manifests','packages']);
+  assert.deepEqual([...catalog.objectStoreNames], ['downloads','manifests','metadata','packages']);
   assert.equal(old.version, 5);
   for (const name of old.objectStoreNames) {
     const result = await new Promise(resolve => {
@@ -25,6 +25,25 @@ test('v4 catalog is isolated from the v3 rollback database', async () => {
     assert.equal(result.value, name);
   }
   old.close(); catalog.close();
+});
+
+test('v4 catalog records a completed migration without changing personal v5 data',async()=>{
+  const db=await openPackageCatalog(new IDBFactory(),'/migration/'), catalog=packageCatalog(db);
+  const migration=await recordPackageMigration(catalog,1234);
+  assert.equal(migration.schemaVersion,2);
+  assert.equal(migration.personalDatabaseVersion,5);
+  assert.equal((await catalog.get('metadata','migration')).state,'ready');
+  db.close();
+});
+
+test('package catalog v1 upgrades to metadata schema without losing downloads',async()=>{
+  const factory=new IDBFactory(), name='trail-pocket-packages:/upgrade/';
+  const old=await new Promise((resolve,reject)=>{const request=factory.open(name,1);request.onupgradeneeded=()=>{for(const store of ['packages','downloads','manifests'])request.result.createObjectStore(store,{keyPath:'id'});request.transaction.objectStore('downloads').put({id:'para-wirra',state:'paused',received:42});};request.onsuccess=()=>resolve(request.result);request.onerror=()=>reject(request.error);});
+  old.close();
+  const upgraded=await openPackageCatalog(factory,'/upgrade/'), catalog=packageCatalog(upgraded);
+  assert.equal((await catalog.get('downloads','para-wirra')).received,42);
+  assert.ok(upgraded.objectStoreNames.contains('metadata'));
+  upgraded.close();
 });
 
 test('unsupported file storage fails explicitly', async () => {

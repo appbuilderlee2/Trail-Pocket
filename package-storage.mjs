@@ -1,10 +1,11 @@
 // Separate catalog keeps the v3 database readable by the rollback release.
 export function openPackageCatalog(factory = indexedDB, scope = new URL('./', import.meta.url).pathname) {
   return new Promise((resolve, reject) => {
-    const request = factory.open('trail-pocket-packages:' + scope, 1);
+    const request = factory.open('trail-pocket-packages:' + scope, 2);
     request.onupgradeneeded = () => {
-      for (const name of ['packages', 'downloads', 'manifests'])
-        request.result.createObjectStore(name, { keyPath: 'id' });
+      for (const name of ['packages', 'downloads', 'manifests', 'metadata'])
+        if (!request.result.objectStoreNames.contains(name))
+          request.result.createObjectStore(name, { keyPath: 'id' });
     };
     request.onerror = () => reject(request.error);
     request.onblocked = () => reject(Error('請關閉其他 Trail Pocket 視窗再試。'));
@@ -31,6 +32,17 @@ export function packageCatalog(db) {
     put: (name, value) => requestResult(store(name, 'readwrite').put(value)),
     remove: (name, id) => requestResult(store(name, 'readwrite').delete(id)),
   };
+}
+
+export async function recordPackageMigration(catalog, now = Date.now()) {
+  const previous = await catalog.get('metadata', 'migration');
+  const value = {
+    id:'migration',schemaVersion:2,personalDatabaseVersion:5,state:'ready',
+    startedAt:previous?.startedAt || now,completedAt:now,
+    rollback:'v3.8 personal data remains in the original database',
+  };
+  await catalog.put('metadata', value);
+  return value;
 }
 
 function safeName(name) {
