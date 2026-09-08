@@ -10,6 +10,8 @@ const paths = {
  location:'<circle cx="12" cy="12" r="6"/><path d="M12 2v4m0 12v4M2 12h4m12 0h4"/>',
  plus:'<path d="M12 5v14M5 12h14"/>',minus:'<path d="M5 12h14"/>',
  more:'<circle cx="5" cy="12" r="1"/><circle cx="12" cy="12" r="1"/><circle cx="19" cy="12" r="1"/>',
+ refresh:'<path d="M20 6v5h-5M4 18v-5h5"/><path d="M18 9a7 7 0 0 0-12-2M6 15a7 7 0 0 0 12 2"/>',
+ trash:'<path d="M4 7h16M9 7V4h6v3m-8 0 1 13h8l1-13M10 11v5m4-5v5"/>',
 };
 const icon = name => `<svg viewBox="0 0 24 24" aria-hidden="true" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round">${paths[name]}</svg>`;
 const parkFor = name => OFFLINE_REGIONS.find(region => region.name === name);
@@ -26,46 +28,36 @@ function syncParkRows(){
    if(state){state.textContent='✓';state.classList.add('saved');}
    if(meta)meta.textContent=`已由 ${installed.map(x=>x.name).join(' + ')} 覆蓋`;
    if(action.textContent!=='開啟'){
-    action.textContent='已涵蓋';
-    action.disabled=true;
-    action.dataset.packageCovered='1';
+    action.textContent='已涵蓋';action.disabled=true;action.dataset.packageCovered='1';
    }
   }else if(available.length&&action.textContent!=='開啟'){
    if(meta)meta.textContent=`使用正式區域包 · ${available.map(x=>x.name).join(' + ')}`;
-   action.textContent='下載';
-   action.disabled=false;
-   action.dataset.packageDownload='1';
+   action.textContent='下載';action.disabled=false;action.dataset.packageDownload='1';
   }
  }
 }
 
 export function setupUnifiedUI(ctx) {
+ document.querySelector('.header-status .version').textContent='v4.1.0';
+ const settingsEyebrow=document.querySelector('#settingsView>.eyebrow');
+ if(settingsEyebrow)settingsEyebrow.textContent='TRAIL POCKET · V4.1.0';
  const heading=document.createElement('section');heading.id='libraryHeader';heading.className='library-header hide';
  heading.innerHTML='<h1>我的</h1><div class="library-tabs" role="tablist" aria-label="我的分類"><button id="myRoutes" role="tab" aria-selected="true">路線</button><button id="myMaps" role="tab" aria-selected="false">離線地圖</button><button id="myActivities" role="tab" aria-selected="false">活動</button><button id="myMarkers" role="tab" aria-selected="false">標記</button></div>';
  document.querySelector('main').prepend(heading);
- $('myRoutes').onclick=()=>ctx.nav('routes');$('myMaps').onclick=()=>ctx.nav('offline');$('myActivities').onclick=()=> $('activityHistory').click();
- $('myMarkers').onclick=()=>ctx.nav('markers');
+ $('myRoutes').onclick=()=>ctx.nav('routes');$('myMaps').onclick=()=>ctx.nav('offline');$('myActivities').onclick=()=> $('activityHistory').click();$('myMarkers').onclick=()=>ctx.nav('markers');
  window.addEventListener('trail:view',({detail:name})=>{
   heading.classList.toggle('hide',!['routes','offline','history','markers'].includes(name));
   for(const [id,view] of [['myRoutes','routes'],['myMaps','offline'],['myActivities','history'],['myMarkers','markers']]) $(id).setAttribute('aria-selected',String(view===name));
-  $('mapToolMenu')?.removeAttribute('open');
-  if(name==='offline')requestAnimationFrame(syncParkRows);
+  $('mapToolMenu')?.removeAttribute('open');if(name==='offline')requestAnimationFrame(syncParkRows);
  });
  window.addEventListener('trail:packages-changed',()=>requestAnimationFrame(syncParkRows));
- window.addEventListener('trail:parks-changed',()=>{
-  const search=$('regionSearch');
-  if(search)search.dispatchEvent(new Event('input'));
-  requestAnimationFrame(syncParkRows);
- });
- const parkObserver=new MutationObserver(()=>requestAnimationFrame(syncParkRows));
- if($('regionList'))parkObserver.observe($('regionList'),{childList:true});
+ window.addEventListener('trail:parks-changed',()=>{const search=$('regionSearch');if(search)search.dispatchEvent(new Event('input'));requestAnimationFrame(syncParkRows);});
+ const parkObserver=new MutationObserver(()=>requestAnimationFrame(syncParkRows));if($('regionList'))parkObserver.observe($('regionList'),{childList:true});
  $('regionList')?.addEventListener('click',async event=>{
-  const action=event.target.closest('.region-row button');
-  if(!action||action.textContent==='開啟'||action.dataset.packageCovered==='1')return;
+  const action=event.target.closest('.region-row button');if(!action||action.textContent==='開啟'||action.dataset.packageCovered==='1')return;
   const row=action.closest('.region-row'),region=parkFor(row?.querySelector('h3')?.textContent?.trim()),api=window.trailPocketPackages;
   if(!region||!api?.availableCovering?.(region.bounds)?.length)return;
-  event.preventDefault();event.stopImmediatePropagation();
-  action.disabled=true;
+  event.preventDefault();event.stopImmediatePropagation();action.disabled=true;
   try{await api.downloadCovering(region.bounds);}finally{action.disabled=false;requestAnimationFrame(syncParkRows);}
  },true);
  for(const [tab,svg,label] of [['explore','map','地圖'],['saved','saved','我的'],['settings','settings','設定']]){
@@ -76,25 +68,22 @@ export function setupUnifiedUI(ctx) {
  document.querySelector('.map-wrap').append(menu);const items=menu.querySelector('div');
  for(const id of ['jumpPlace','selectArea']){const button=$(id);button.textContent=id==='jumpPlace'?'搜尋地點':'下載地圖範圍';items.append(button);}
  const quickMarker=document.createElement('button');quickMarker.textContent='標記目前位置';quickMarker.onclick=()=>{$('addMarker').click();menu.open=false;};items.append(quickMarker);
- const tools=document.querySelector('.trail-tools');if(tools)items.append(tools);
- items.addEventListener('click',e=>{if(e.target.closest('button'))menu.open=false;});
+ const tools=document.querySelector('.trail-tools');if(tools)items.append(tools);items.addEventListener('click',e=>{if(e.target.closest('button'))menu.open=false;});
  const extras=document.createElement('details');extras.className='library-actions';extras.innerHTML='<summary>新增及匯入</summary><div></div>';
- const row=extras.querySelector('div');
- const routeHeading=document.querySelector('#routesView .heading');
+ const row=extras.querySelector('div'),routeHeading=document.querySelector('#routesView .heading');
  for(const b of [...routeHeading.querySelectorAll('button')]){if(b.id==='import')row.append(b);else b.hidden=true;}
- const routeTools=document.querySelector('#routesView .route-tools');if(routeTools)for(const b of [...routeTools.querySelectorAll('button')])row.append(b);
- $('routesView').prepend(extras);
- $('settingsActivityHistory').hidden=true;
- $('closeActivityHistory').hidden=true;
- const extraHistory=$('activityHistory');extraHistory.hidden=true;
- document.querySelectorAll('.eyebrow,.activity-heading small').forEach(e=>e.hidden=true);
- document.querySelector('#routesView h1').textContent='路線';
- $('startActivity').textContent='開始活動';
+ const routeTools=document.querySelector('#routesView .route-tools');if(routeTools)for(const b of [...routeTools.querySelectorAll('button')])row.append(b);$('routesView').prepend(extras);
+ $('settingsActivityHistory').hidden=true;$('closeActivityHistory').hidden=true;const extraHistory=$('activityHistory');extraHistory.hidden=true;
+ document.querySelectorAll('.eyebrow,.activity-heading small').forEach(e=>e.hidden=true);document.querySelector('#routesView h1').textContent='路線';$('startActivity').textContent='開始活動';
+
+ const appCard=document.createElement('section');appCard.className='settings-card';appCard.innerHTML=`<h2>App 與儲存</h2><p>Trail Pocket v4.1 會檢查 PWA 更新，亦可安全清走已被正式南澳地圖完整覆蓋嘅舊式離線包。</p><div class="settings-list"><button id="checkAppUpdate"><span>${icon('refresh')}</span><b>檢查更新</b><small id="updateCheckStatus">目前版本 v4.1.0</small><i>›</i></button><button id="cleanupLegacyMaps"><span>${icon('trash')}</span><b>清理重複舊地圖</b><small id="cleanupLegacyStatus">保留 GPX／KML、活動、標記、GeoPDF 及有等高線嘅自訂地圖</small><i>›</i></button></div>`;
+ const storageCard=document.querySelector('#settingsView .settings-storage');storageCard?.before(appCard);
+ $('checkAppUpdate').onclick=()=>window.dispatchEvent(new CustomEvent('trail:check-update'));
+ $('cleanupLegacyMaps').onclick=()=>window.dispatchEvent(new CustomEvent('trail:cleanup-legacy'));
+
  const downloadGuide=document.createElement('details');downloadGuide.className='settings-guide';downloadGuide.innerHTML='<summary>離線地圖格式及下載說明</summary>';
- for(const note of [...$('offlineView').querySelectorAll('.fineprint')])downloadGuide.append(note);
- $('settingsView').append(downloadGuide);
- for(const b of row.querySelectorAll('button'))b.textContent=b.textContent.replace(/^[＋✎▧]\s*/, '');
- for(const b of items.querySelectorAll('button'))b.textContent=b.textContent.replace(/^[☀⌁✎]\s*/, '');
+ for(const note of [...$('offlineView').querySelectorAll('.fineprint')])downloadGuide.append(note);$('settingsView').append(downloadGuide);
+ for(const b of row.querySelectorAll('button'))b.textContent=b.textContent.replace(/^[＋✎▧]\s*/, '');for(const b of items.querySelectorAll('button'))b.textContent=b.textContent.replace(/^[☀⌁✎]\s*/, '');
  for(const [id,title]of [['settingsMapSource','地圖來源及 GeoPDF'],['settingsLayers','地圖圖層'],['settingsAlerts','偏离路線提醒']]){
   const b=$(id);b.querySelector('span').innerHTML=icon(id==='settingsMapSource'?'layers':id==='settingsLayers'?'map':'location');b.querySelector('i').innerHTML='<svg viewBox="0 0 24 24" aria-hidden="true" fill="none" stroke="currentColor" stroke-width="1.8"><path d="m9 5 7 7-7 7"/></svg>';
  }
