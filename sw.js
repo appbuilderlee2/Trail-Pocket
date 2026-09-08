@@ -1,6 +1,7 @@
+const APP_VERSION = "4.1.5";
 const PREFIX =
   "trail-pocket-shell:" + new URL(self.registration.scope).pathname + ":";
-const VERSION = PREFIX + "v4.1.4";
+const VERSION = PREFIX + "v" + APP_VERSION;
 const ASSETS = [
   "./unified-ui.mjs",
   "./unified-ui-base.mjs",
@@ -53,6 +54,7 @@ const ASSETS = [
   "./vendor/pmtiles.js",
   "./",
   "./index.html",
+  "./recovery.html",
   "./style.css",
   "./adventure.css",
   "./explore.css",
@@ -73,6 +75,48 @@ const ASSETS = [
   "./assets/devils-route.json",
   "./assets/devils-base.json",
 ];
+
+function safeBootHtml(response) {
+  if (!response) return response;
+  const type = response.headers.get("content-type") || "";
+  if (!type.includes("text/html")) return response;
+  return response.text().then((source) => {
+    let html = source
+      .replaceAll("v4.1.1", "v" + APP_VERSION)
+      .replaceAll("V4.1.1", "V" + APP_VERSION)
+      .replaceAll("v4.1.0", "v" + APP_VERSION)
+      .replaceAll("V4.1.0", "V" + APP_VERSION);
+    const normal = '<script type="module" src="./app.mjs"></script>';
+    const safe = `<script type="module">
+      import('./app.mjs?v=${APP_VERSION}').catch((error) => {
+        console.error('Trail Pocket boot failed', error);
+        const banner = document.getElementById('banner');
+        const version = document.querySelector('.header-status .version');
+        if (version) version.textContent = 'v${APP_VERSION}';
+        if (banner) {
+          banner.classList.remove('hide');
+          banner.textContent = 'App 啟動失敗：' + (error?.message || '主程式未能載入') + '。';
+          const link = document.createElement('a');
+          link.href = './recovery.html?v=${APP_VERSION}&t=' + Date.now();
+          link.textContent = ' 修復 App';
+          link.style.fontWeight = '700';
+          link.style.marginLeft = '8px';
+          banner.append(link);
+        }
+      });
+    </script>`;
+    html = html.includes(normal) ? html.replace(normal, safe) : html;
+    const headers = new Headers(response.headers);
+    headers.delete("content-length");
+    headers.set("cache-control", "no-cache");
+    return new Response(html, {
+      status: response.status,
+      statusText: response.statusText,
+      headers,
+    });
+  });
+}
+
 self.addEventListener("install", (e) =>
   e.waitUntil(
     caches.open(VERSION).then((c) =>
@@ -87,6 +131,7 @@ self.addEventListener("install", (e) =>
     ),
   ),
 );
+
 self.addEventListener("activate", (e) =>
   e.waitUntil(
     (async () => {
@@ -96,6 +141,7 @@ self.addEventListener("activate", (e) =>
     })(),
   ),
 );
+
 self.addEventListener("message", (e) => {
   if (e.data?.type === "UPDATE") self.skipWaiting();
   if (e.data?.type === "STATUS")
@@ -113,6 +159,7 @@ self.addEventListener("message", (e) => {
       })(),
     );
 });
+
 self.addEventListener("fetch", (e) => {
   const u = new URL(e.request.url);
   if (
@@ -125,20 +172,34 @@ self.addEventListener("fetch", (e) => {
     (p) => new URL(p, self.registration.scope).pathname,
   );
   if (!allowed.includes(u.pathname) && e.request.mode !== "navigate") return;
+
   e.respondWith(
     (async () => {
       const c = await caches.open(VERSION);
+      if (e.request.mode === "navigate") {
+        let page = null;
+        if (u.searchParams.has("recover")) {
+          try {
+            const fresh = await fetch(new Request(e.request, { cache: "reload" }));
+            if (fresh.ok) page = fresh;
+          } catch {}
+        }
+        if (!page) {
+          page =
+            (await c.match(e.request, { ignoreSearch: true })) ||
+            (await c.match(new URL("./index.html", self.registration.scope).href));
+        }
+        if (!page) {
+          try {
+            page = await fetch(e.request);
+          } catch {}
+        }
+        return safeBootHtml(page);
+      }
+
       const cached = await c.match(e.request, { ignoreSearch: true });
       if (cached) return cached;
-      try {
-        return await fetch(e.request);
-      } catch (err) {
-        if (e.request.mode === "navigate")
-          return await c.match(
-            new URL("./index.html", self.registration.scope).href,
-          );
-        throw err;
-      }
+      return fetch(e.request);
     })(),
   );
 });
