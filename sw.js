@@ -1,7 +1,6 @@
-const APP_VERSION = "4.1.8";
 const PREFIX =
   "trail-pocket-shell:" + new URL(self.registration.scope).pathname + ":";
-const VERSION = PREFIX + "v" + APP_VERSION;
+const VERSION = PREFIX + "v4.1.0-r10";
 const ASSETS = [
   "./unified-ui.mjs",
   "./unified-ui-base.mjs",
@@ -74,139 +73,29 @@ const ASSETS = [
   "./assets/devils-route.json",
   "./assets/devils-base.json",
 ];
-
-function runtimeGuardScript() {
-  return `<script id="trailRuntimeGuard">
-  (() => {
-    const VERSION=${JSON.stringify(APP_VERSION)};
-    const root=document.documentElement;
-    const installFallbackNav=()=>{
-      if(window.__trailPocketFallbackNav)return;
-      window.__trailPocketFallbackNav=true;
-      const show=(name,tab)=>{
-        for(const n of ['routes','map','offline','history','markers','settings']){
-          const el=document.getElementById(n+'View');
-          if(el)el.classList.toggle('hide',n!==name);
-        }
-        document.querySelectorAll('body>nav button').forEach(b=>b.classList.toggle('active',b.dataset.tab===tab));
-        window.scrollTo({top:0});
-      };
-      document.querySelectorAll('body>nav button').forEach(b=>{
-        b.addEventListener('click',event=>{
-          if(root.dataset.trailBootError!=='1')return;
-          event.preventDefault();event.stopImmediatePropagation();
-          const name=b.dataset.view||'routes',tab=b.dataset.tab||name;
-          show(name,tab);
-        },true);
-      });
-    };
-    const describe=value=>{
-      if(value instanceof Error)return value.name+': '+value.message+(value.stack?' | '+String(value.stack).split('\\n').slice(0,3).join(' → '):'');
-      if(value&&typeof value==='object'&&value.message)return String(value.message);
-      return String(value||'未知錯誤');
-    };
-    const report=(title,value)=>{
-      root.dataset.trailBootError='1';
-      installFallbackNav();
-      const detail=describe(value);
-      try{localStorage.setItem('trail-pocket-last-error',title+' | '+detail);}catch{}
-      const banner=document.getElementById('banner');
-      const version=document.querySelector('.header-status .version');
-      if(version)version.textContent='v'+VERSION;
-      if(!banner)return;
-      banner.classList.remove('hide');
-      banner.replaceChildren();
-      const strong=document.createElement('strong');strong.textContent=title+'：';
-      const text=document.createTextNode(' '+detail+' ');
-      const link=document.createElement('a');link.href='./repair.html?t='+Date.now();link.textContent='強制修復 App';link.style.fontWeight='700';
-      banner.append(strong,text,link);
-    };
-    if(typeof ResizeObserver==='undefined'){
-      window.ResizeObserver=class{constructor(callback){this.callback=callback;}observe(){try{this.callback([]);}catch{}}unobserve(){}disconnect(){}};
-    }
-    window.addEventListener('error',event=>report('JavaScript 錯誤',event.error||event.message),true);
-    window.addEventListener('unhandledrejection',event=>report('未處理程式錯誤',event.reason),true);
-    setTimeout(()=>{
-      const unified=document.getElementById('libraryHeader');
-      if(!unified){
-        report('App UI 初始化未完成',new Error('核心畫面未完成啟動；底部頁面切換已暫時恢復。'));
-      }
-    },4500);
-  })();
-  </script>`;
-}
-
-function safeBootHtml(response) {
-  if (!response) return response;
-  const type = response.headers.get("content-type") || "";
-  if (!type.includes("text/html")) return response;
-  return response.text().then((source) => {
-    let html = source
-      .replace(/v4\.1\.\d+(?:-[\w.]+)?/g, "v" + APP_VERSION)
-      .replace(/V4\.1\.\d+(?:-[\w.]+)?/g, "V" + APP_VERSION)
-      .replace('href="./app.mjs"', `href="./app.mjs?v=${APP_VERSION}"`);
-    const normal = '<script type="module" src="./app.mjs"></script>';
-    const safe = `<script type="module">
-      import('./app.mjs?v=${APP_VERSION}').catch((error) => {
-        console.error('Trail Pocket boot failed', error);
-        const banner = document.getElementById('banner');
-        const version = document.querySelector('.header-status .version');
-        if (version) version.textContent = 'v${APP_VERSION}';
-        document.documentElement.dataset.trailBootError='1';
-        if (banner) {
-          banner.classList.remove('hide');
-          banner.textContent = 'App 啟動失敗：' + (error?.message || '主程式未能載入') + '。';
-          const link = document.createElement('a');
-          link.href = './repair.html?t=' + Date.now();
-          link.textContent = ' 強制修復 App';
-          link.style.fontWeight = '700';
-          link.style.marginLeft = '8px';
-          banner.append(link);
-        }
-      });
-    </script>`;
-    html = html.includes(normal) ? html.replace(normal, safe) : html;
-    if (!html.includes('id="trailRuntimeGuard"')) html = html.replace("</body>", runtimeGuardScript() + "</body>");
-    const headers = new Headers(response.headers);
-    headers.delete("content-length");
-    headers.set("cache-control", "no-cache");
-    return new Response(html, {
-      status: response.status,
-      statusText: response.statusText,
-      headers,
-    });
-  });
-}
-
-async function installShell() {
-  const cache = await caches.open(VERSION);
-  // Small batches avoid competing with every startup request at once.
-  for (let offset = 0; offset < ASSETS.length; offset += 4) {
-    const paths = ASSETS.slice(offset, offset + 4);
-    let lastError;
-    for (let attempt = 0; attempt < 3; attempt++) {
-      try {
-        await cache.addAll(paths.map(p => new Request(new URL(p, self.registration.scope), {
-          cache: "reload", signal: AbortSignal.timeout(45000),
-        })));
-        lastError = null;
-        break;
-      } catch (error) { lastError = error; }
-    }
-    if (lastError) throw lastError;
-  }
-}
-self.addEventListener("install", e => e.waitUntil(installShell()));
-
+self.addEventListener("install", (e) =>
+  e.waitUntil(
+    caches.open(VERSION).then((c) =>
+      c.addAll(
+        ASSETS.map(
+          (p) =>
+            new Request(new URL(p, self.registration.scope), {
+              cache: "reload",
+            }),
+        ),
+      ),
+    ),
+  ),
+);
 self.addEventListener("activate", (e) =>
   e.waitUntil(
     (async () => {
-      // Keep previous shells: an update must not destroy a working offline copy.
+      for (const key of await caches.keys())
+        if (key.startsWith(PREFIX) && key !== VERSION) await caches.delete(key);
       await self.clients.claim();
     })(),
   ),
 );
-
 self.addEventListener("message", (e) => {
   if (e.data?.type === "UPDATE") self.skipWaiting();
   if (e.data?.type === "STATUS")
@@ -224,7 +113,6 @@ self.addEventListener("message", (e) => {
       })(),
     );
 });
-
 self.addEventListener("fetch", (e) => {
   const u = new URL(e.request.url);
   if (
@@ -233,41 +121,24 @@ self.addEventListener("fetch", (e) => {
     !u.href.startsWith(self.registration.scope)
   )
     return;
-
-  if (u.pathname.endsWith("/repair.html")) return;
-
   const allowed = ASSETS.map(
     (p) => new URL(p, self.registration.scope).pathname,
   );
   if (!allowed.includes(u.pathname) && e.request.mode !== "navigate") return;
-
   e.respondWith(
     (async () => {
       const c = await caches.open(VERSION);
-      if (e.request.mode === "navigate") {
-        let page = null;
-        if (u.searchParams.has("recover")) {
-          try {
-            const fresh = await fetch(new Request(e.request, { cache: "reload", signal: AbortSignal.timeout(15000) }));
-            if (fresh.ok) page = fresh;
-          } catch {}
-        }
-        if (!page) {
-          page =
-            (await c.match(e.request, { ignoreSearch: true })) ||
-            (await c.match(new URL("./index.html", self.registration.scope).href));
-        }
-        if (!page) {
-          try {
-            page = await fetch(e.request);
-          } catch {}
-        }
-        return safeBootHtml(page);
-      }
-
       const cached = await c.match(e.request, { ignoreSearch: true });
       if (cached) return cached;
-      return fetch(e.request);
+      try {
+        return await fetch(e.request);
+      } catch (err) {
+        if (e.request.mode === "navigate")
+          return await c.match(
+            new URL("./index.html", self.registration.scope).href,
+          );
+        throw err;
+      }
     })(),
   );
 });

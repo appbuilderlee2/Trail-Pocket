@@ -1,5 +1,5 @@
 <!doctype html>
-<html lang="zh-Hant" class="styles-pending">
+<html lang="zh-Hant">
   <head>
     <meta charset="utf-8" />
     <meta
@@ -11,72 +11,25 @@
     <meta name="apple-mobile-web-app-title" content="Trail Pocket" />
     <link rel="manifest" href="./manifest.webmanifest" />
     <link rel="apple-touch-icon" href="./assets/icon-192.png" />
-    <style>
-      #bootSplash{display:none}
-      html.styles-pending body{margin:0;background:#f5f7ef;color:#193f32;font-family:-apple-system,BlinkMacSystemFont,"Segoe UI",sans-serif}
-      html.styles-pending body>:not(#bootSplash){visibility:hidden}
-      html.boot-delayed #bootSplash{display:block;position:relative;padding:16px;background:#f5f7ef;color:#193f32}
-      html.boot-delayed #bootRepair{display:inline-block}
-      html.styles-pending #bootSplash{visibility:visible;position:fixed;inset:0;z-index:9999;display:grid;place-content:center;gap:12px;padding:32px;text-align:center;background:#f5f7ef}
-      html.styles-pending #bootSplash strong{font-size:20px;letter-spacing:.12em}
-      html.styles-pending #bootSplash span{font-size:13px;color:#6a796d;line-height:1.6}
-      html.styles-pending #bootSplash a{color:#193f32;font-size:13px;font-weight:700}
-    </style>
-    <script>
-      (() => {
-        const root = document.documentElement;
-        const update = (failed) => {
-          const links = [...document.querySelectorAll("link.app-stylesheet")];
-          const settled = links.filter((link) => link.dataset.settled === "1").length;
-          const message = document.getElementById("bootMessage");
-          if (message && settled < links.length)
-            message.textContent = failed
-              ? "部分介面檔案未能載入，正在重試…"
-              : `正在載入離線行山地圖… ${settled}/${links.length}`;
-          if (links.length && settled === links.length)
-            root.classList.remove("styles-pending");
-        };
-        window.trailStyleSettled = (link, failed = false) => {
-          link.dataset.settled = "1";
-          if (!failed) link.media = "all";
-          update(failed);
-        };
-        setTimeout(() => {
-          if (!root.classList.contains("styles-pending")) return;
-          root.classList.remove("styles-pending");
-          root.classList.add("boot-delayed");
-          const message = document.getElementById("bootMessage");
-          const repair = document.getElementById("bootRepair");
-          if (message) message.textContent = "部分介面資源仍在載入；已顯示基本畫面，功能可能尚未就緒。";
-          if (repair) repair.hidden = false;
-        }, 15000);
-      })();
-    </script>
-    <link class="app-stylesheet" rel="stylesheet" href="./style.css" media="print" onload="trailStyleSettled(this)" onerror="trailStyleSettled(this,true)" />
-    <link class="app-stylesheet" rel="stylesheet" href="./adventure.css" media="print" onload="trailStyleSettled(this)" onerror="trailStyleSettled(this,true)" />
-    <link class="app-stylesheet" rel="stylesheet" href="./explore.css" media="print" onload="trailStyleSettled(this)" onerror="trailStyleSettled(this,true)" />
-    <link class="app-stylesheet" rel="stylesheet" href="./activity.css" media="print" onload="trailStyleSettled(this)" onerror="trailStyleSettled(this,true)" />
-    <link class="app-stylesheet" rel="stylesheet" href="./geopdf.css" media="print" onload="trailStyleSettled(this)" onerror="trailStyleSettled(this,true)" />
-    <link class="app-stylesheet" rel="stylesheet" href="./map-source.css" media="print" onload="trailStyleSettled(this)" onerror="trailStyleSettled(this,true)" />
-    <link class="app-stylesheet" rel="stylesheet" href="./vendor/maplibre-gl.css" media="print" onload="trailStyleSettled(this)" onerror="trailStyleSettled(this,true)" />
-    <link class="app-stylesheet" rel="stylesheet" href="./vector-map.css" media="print" onload="trailStyleSettled(this)" onerror="trailStyleSettled(this,true)" />
-    <link class="app-stylesheet" rel="stylesheet" href="./package-manager.css" media="print" onload="trailStyleSettled(this)" onerror="trailStyleSettled(this,true)" />
-    <link class="app-stylesheet" rel="stylesheet" href="./package-manager-controls.css" media="print" onload="trailStyleSettled(this)" onerror="trailStyleSettled(this,true)" />
+    <link rel="stylesheet" href="./style.css" />
+    <link rel="stylesheet" href="./adventure.css" />
+    <link rel="stylesheet" href="./explore.css" />
+    <link rel="stylesheet" href="./activity.css" />
+    <link rel="stylesheet" href="./geopdf.css" />
+    <link rel="stylesheet" href="./map-source.css" />
+    <link rel="stylesheet" href="./vendor/maplibre-gl.css" />
+    <link rel="stylesheet" href="./vector-map.css" />
+    <link rel="stylesheet" href="./package-manager.css" />
+    <link rel="stylesheet" href="./package-manager-controls.css" />
     <title>Trail Pocket · 離線行山地圖</title>
-    <link class="app-stylesheet" rel="stylesheet" href="./hiking-ui.css" media="print" onload="trailStyleSettled(this)" onerror="trailStyleSettled(this,true)">
-    <link class="app-stylesheet" rel="stylesheet" href="./unified-ui.css" media="print" onload="trailStyleSettled(this)" onerror="trailStyleSettled(this,true)">
-    <link rel="modulepreload" href="./app.mjs" />
+    <link rel="stylesheet" href="./hiking-ui.css">
+  <link rel="stylesheet" href="./unified-ui.css">
   </head>
   <body>
-    <div id="bootSplash" role="status" aria-live="polite">
-      <strong>TRAIL POCKET</strong>
-      <span id="bootMessage">正在載入離線行山地圖…</span>
-      <a id="bootRepair" href="./repair.html" hidden>強制修復 App</a>
-    </div>
     <header>
       <div><b>TRAIL POCKET</b><small>帶住路線，離線出發</small></div>
       <div class="header-status">
-        <span class="version">v4.1.8</span
+        <span class="version">v4.0.0-beta.7</span
         ><span id="network" class="chip">檢查連線</span>
       </div>
     </header>
@@ -173,7 +126,7 @@
         </p>
       </section>
       <section id="settingsView" class="view hide">
-        <div class="eyebrow">TRAIL POCKET · V4.1.8</div>
+        <div class="eyebrow">TRAIL POCKET · V4.0.0 BETA 1</div>
         <h1>設定</h1>
         <p class="settings-intro">定位、地圖、安全提醒、離線檢查及使用說明集中在這裏。</p>
 
@@ -320,7 +273,7 @@
           "呢個係 PWA 程式套件。請先部署到 HTTPS 網址，再用 Safari 加入主畫面；直接開啟本機檔案唔能夠安裝或儲存離線地圖。";
       }
     </script>
-    <script defer src="./vendor/pmtiles.js"></script>
+    <script src="./vendor/pmtiles.js"></script>
     <script type="module" src="./app.mjs"></script>
   </body>
 </html>

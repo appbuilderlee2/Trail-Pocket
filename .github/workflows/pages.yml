@@ -43,46 +43,13 @@ jobs:
       - name: Prepare static PWA
         run: |
           mkdir -p dist/assets dist/vendor dist/config dist/packages
-          cp backup.mjs wake-lock.mjs heading.mjs reliability-core.mjs markers.mjs offline-download.mjs offline-search.mjs offline-regions.mjs package-search.mjs package-routing.mjs routing-core.mjs routing-client.mjs route-worker.mjs offline-package.mjs package-storage.mjs package-manifest.mjs package-downloader.mjs package-manager.mjs package-manager-base.mjs package-manager.css package-manager-controls.css sha256.mjs vector-map.mjs vector-map.css outdoor-style.mjs pmtiles-opfs.mjs activity.mjs activity-core.mjs activity.css geopdf.mjs geopdf-core.mjs geopdf-parser.mjs geopdf-render.mjs geopdf.css map-source.css index.html recovery.html repair.html style.css adventure.css app.mjs core.mjs storage.mjs map.mjs adventure.mjs adventure-core.mjs explore.mjs explore-base.mjs explore-core.mjs online-map.mjs terrain.mjs explore.css sw.js manifest.webmanifest hiking-ui.css unified-ui.css unified-ui.mjs unified-ui-base.mjs v41-enhancements.mjs dist/
+          cp backup.mjs wake-lock.mjs heading.mjs reliability-core.mjs markers.mjs offline-download.mjs offline-search.mjs offline-regions.mjs package-search.mjs package-routing.mjs routing-core.mjs routing-client.mjs route-worker.mjs offline-package.mjs package-storage.mjs package-manifest.mjs package-downloader.mjs package-manager.mjs package-manager-base.mjs package-manager.css package-manager-controls.css sha256.mjs vector-map.mjs vector-map.css outdoor-style.mjs pmtiles-opfs.mjs activity.mjs activity-core.mjs activity.css geopdf.mjs geopdf-core.mjs geopdf-parser.mjs geopdf-render.mjs geopdf.css map-source.css index.html style.css adventure.css app.mjs core.mjs storage.mjs map.mjs adventure.mjs adventure-core.mjs explore.mjs explore-base.mjs explore-core.mjs online-map.mjs terrain.mjs explore.css sw.js manifest.webmanifest hiking-ui.css unified-ui.css unified-ui.mjs unified-ui-base.mjs v41-enhancements.mjs dist/
           cp vendor/pdf-lib.min.mjs vendor/pdf.min.mjs vendor/pdf.worker.min.mjs vendor/pdf-lib-LICENSE.md vendor/pdfjs-LICENSE dist/vendor/
           cp node_modules/maplibre-gl/dist/maplibre-gl.mjs node_modules/maplibre-gl/dist/maplibre-gl-shared.mjs node_modules/maplibre-gl/dist/maplibre-gl-worker.mjs node_modules/maplibre-gl/dist/maplibre-gl.css dist/vendor/
           cp node_modules/maplibre-gl/LICENSE.txt dist/vendor/maplibre-LICENSE.txt
           cp node_modules/pmtiles/dist/pmtiles.js dist/vendor/pmtiles.js
           cp assets/icon-192.png assets/icon-512.png assets/devils-route.json assets/devils-base.json dist/assets/
           cp config/sa-index.json dist/config/sa-index.json
-          export APP_VERSION="$(node -p "require('./package.json').version")"
-          node <<'NODE'
-          const fs=require('fs');
-          const version=process.env.APP_VERSION;
-          if(!/^\d+\.\d+\.\d+$/.test(version)) throw Error('Invalid package version: '+version);
-          const p='dist/index.html';
-          let html=fs.readFileSync(p,'utf8');
-          html=html.replace(/v\d+\.\d+\.\d+(?:-[\w.]+)?/g,'v'+version).replace(/V\d+\.\d+\.\d+(?:-[\w.]+)?/g,'V'+version);
-          html=html.replace('href="./app.mjs"',`href="./app.mjs?v=${version}"`);
-          html=html.replace(
-            '<script type="module" src="./app.mjs"></script>',
-            `<script type="module">
-              import("./app.mjs?v=${version}").catch((error) => {
-                console.error("Trail Pocket failed to start", error);
-                const banner=document.getElementById("banner");
-                const versionNode=document.querySelector(".header-status .version");
-                if(versionNode)versionNode.textContent="v${version}";
-                if(banner){
-                  banner.classList.remove("hide");
-                  banner.innerHTML='App 啟動失敗。<a href="./repair.html?t='+Date.now()+'">按此強制修復</a>（不會刪除離線地圖或個人資料）。';
-                }
-              });
-            </script>`
-          );
-          if(!html.includes('v'+version)) throw Error('HTML version patch failed');
-          if(!html.includes(`app.mjs?v=${version}`)) throw Error('Boot cache-bust patch failed');
-          fs.writeFileSync(p,html);
-          const base='dist/unified-ui-base.mjs';
-          let ui=fs.readFileSync(base,'utf8');
-          ui=ui.replace(/v4\.1\.0/g,'v'+version).replace(/V4\.1\.0/g,'V'+version);
-          fs.writeFileSync(base,ui);
-          fs.writeFileSync('dist/version.json',JSON.stringify({version})+'\n');
-          NODE
           if curl --fail --location --retry 3 --retry-delay 2 \
             https://github.com/appbuilderlee2/Trail-Pocket/releases/download/maps-v4-current/sa-index.json \
             --output dist/config/sa-index.current.json; then
@@ -166,22 +133,9 @@ jobs:
         id: deployment
         uses: actions/deploy-pages@v4
 
-      - name: Validate live shell, repair page and Range delivery
+      - name: Validate live same-origin Range delivery
         run: |
           BASE='${{ steps.deployment.outputs.page_url }}'
-          APP_VERSION="$(node -p "require('./package.json').version")"
-          success=0
-          for attempt in $(seq 1 24); do
-            if curl --silent --show-error --fail "${BASE}version.json?t=${GITHUB_RUN_ID}" | grep -q "\"version\":\"${APP_VERSION}\"" && \
-               curl --silent --show-error --fail "${BASE}?recover=1&t=${GITHUB_RUN_ID}" | grep -q "v${APP_VERSION}" && \
-               curl --silent --show-error --fail "${BASE}repair.html?t=${GITHUB_RUN_ID}" | grep -q 'Trail Pocket 強制修復'; then
-              success=1
-              break
-            fi
-            echo "Live shell not propagated yet (attempt ${attempt}/24)."
-            sleep 5
-          done
-          test "$success" -eq 1
           MAP_PATH=$(node -e "const x=require('./dist/config/sa-index.json');const p=x.packages.find(p=>p.files?.some(f=>f.name==='map.pmtiles'));const f=p?.files.find(f=>f.name==='map.pmtiles');if(!f?.url)process.exit(1);process.stdout.write(f.url.replace(/^\.\//,''))")
           URL="${BASE}${MAP_PATH}"
           success=0
