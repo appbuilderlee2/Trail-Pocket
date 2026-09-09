@@ -1,4 +1,4 @@
-const APP_VERSION = "4.1.7";
+const APP_VERSION = "4.1.8";
 const PREFIX =
   "trail-pocket-shell:" + new URL(self.registration.scope).pathname + ":";
 const VERSION = PREFIX + "v" + APP_VERSION;
@@ -178,26 +178,30 @@ function safeBootHtml(response) {
   });
 }
 
-self.addEventListener("install", (e) =>
-  e.waitUntil(
-    caches.open(VERSION).then((c) =>
-      c.addAll(
-        ASSETS.map(
-          (p) =>
-            new Request(new URL(p, self.registration.scope), {
-              cache: "reload",
-            }),
-        ),
-      ),
-    ),
-  ),
-);
+async function installShell() {
+  const cache = await caches.open(VERSION);
+  // Small batches avoid competing with every startup request at once.
+  for (let offset = 0; offset < ASSETS.length; offset += 4) {
+    const paths = ASSETS.slice(offset, offset + 4);
+    let lastError;
+    for (let attempt = 0; attempt < 3; attempt++) {
+      try {
+        await cache.addAll(paths.map(p => new Request(new URL(p, self.registration.scope), {
+          cache: "reload", signal: AbortSignal.timeout(45000),
+        })));
+        lastError = null;
+        break;
+      } catch (error) { lastError = error; }
+    }
+    if (lastError) throw lastError;
+  }
+}
+self.addEventListener("install", e => e.waitUntil(installShell()));
 
 self.addEventListener("activate", (e) =>
   e.waitUntil(
     (async () => {
-      for (const key of await caches.keys())
-        if (key.startsWith(PREFIX) && key !== VERSION) await caches.delete(key);
+      // Keep previous shells: an update must not destroy a working offline copy.
       await self.clients.claim();
     })(),
   ),
@@ -244,7 +248,7 @@ self.addEventListener("fetch", (e) => {
         let page = null;
         if (u.searchParams.has("recover")) {
           try {
-            const fresh = await fetch(new Request(e.request, { cache: "reload" }));
+            const fresh = await fetch(new Request(e.request, { cache: "reload", signal: AbortSignal.timeout(15000) }));
             if (fresh.ok) page = fresh;
           } catch {}
         }

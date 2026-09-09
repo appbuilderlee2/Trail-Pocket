@@ -992,6 +992,7 @@ async function setupOffline() {
   try {
     reg = await navigator.serviceWorker.register(new URL("sw.js", BASE), {
       scope: BASE.pathname,
+      updateViaCache: "none",
     });
     if (reg.waiting) $("updates").classList.remove("hide");
     reg.addEventListener("updatefound", () => {
@@ -999,6 +1000,8 @@ async function setupOffline() {
       w?.addEventListener("statechange", () => {
         if (w.state === "installed" && navigator.serviceWorker.controller)
           $("updates").classList.remove("hide");
+        if (w.state === "redundant")
+          setBanner("新版下載未完成，現有版本及離線資料已保留；可稍後重試。");
       });
     });
     const ready = await Promise.race([
