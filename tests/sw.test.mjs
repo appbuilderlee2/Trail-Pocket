@@ -6,6 +6,27 @@ test('precache files exist and service worker supports offline reopening under a
 test('failed precaching does not report installation success',async()=>{const h=harness(true);await assert.rejects(dispatchWait(h.events.install));let answer;await dispatchWait(h.events.message,{data:{type:'STATUS'},ports:[{postMessage:m=>answer=m}]});assert.equal(answer.ready,false);});
 test('Pages build copies every service-worker shell asset',async()=>{
   const workflow=await readFile(new URL('../.github/workflows/pages.yml',import.meta.url),'utf8');
-  const assets=[...code.matchAll(/"\.\/(.*?)"/g)].map(match=>match[1]).filter(Boolean);
+  const assetBlock=code.match(/const ASSETS = \[([\s\S]*?)\n\];/)?.[1]||'';
+  const assets=[...assetBlock.matchAll(/"\.\/(.*?)"/g)].map(match=>match[1]).filter(Boolean);
   for(const asset of assets)assert.ok(workflow.includes(asset)||workflow.includes(asset.split('/').at(-1)),`Pages build is missing ${asset}`);
+});
+test('first visit paints a loading shell without waiting for every stylesheet',async()=>{
+  const html=await readFile(new URL('../index.html',import.meta.url),'utf8');
+  assert.match(html,/<html[^>]+class="styles-pending"/);
+  assert.match(html,/id="bootSplash"/);
+  assert.match(html,/id="bootRepair"[^>]+hidden/);
+  const styles=[...html.matchAll(/<link class="app-stylesheet"[^>]+>/g)].map(match=>match[0]);
+  assert.ok(styles.length>=10,'expected all app stylesheets to use the non-blocking loader');
+  for(const style of styles){
+    assert.match(style,/media="print"/);
+    assert.match(style,/onload="trailStyleSettled\(this\)"/);
+    assert.match(style,/onerror="trailStyleSettled\(this,true\)"/);
+  }
+  assert.match(html,/<script defer src="\.\/vendor\/pmtiles\.js"><\/script>/);
+  assert.match(html,/<link rel="modulepreload" href="\.\/app\.mjs"/);
+});
+test('deployed module preload and boot import share the same versioned URL',async()=>{
+  const workflow=await readFile(new URL('../.github/workflows/pages.yml',import.meta.url),'utf8');
+  assert.match(workflow,/html=html\.replace\('href="\.\/app\.mjs"',`href="\.\/app\.mjs\?v=\$\{version\}"`\)/);
+  assert.match(code,/\.replace\('href="\.\/app\.mjs"', `href="\.\/app\.mjs\?v=\$\{APP_VERSION\}"`\)/);
 });

@@ -1,4 +1,4 @@
-const APP_VERSION = "4.1.6";
+const APP_VERSION = "4.1.7";
 const PREFIX =
   "trail-pocket-shell:" + new URL(self.registration.scope).pathname + ":";
 const VERSION = PREFIX + "v" + APP_VERSION;
@@ -143,7 +143,8 @@ function safeBootHtml(response) {
   return response.text().then((source) => {
     let html = source
       .replace(/v4\.1\.\d+(?:-[\w.]+)?/g, "v" + APP_VERSION)
-      .replace(/V4\.1\.\d+(?:-[\w.]+)?/g, "V" + APP_VERSION);
+      .replace(/V4\.1\.\d+(?:-[\w.]+)?/g, "V" + APP_VERSION)
+      .replace('href="./app.mjs"', `href="./app.mjs?v=${APP_VERSION}"`);
     const normal = '<script type="module" src="./app.mjs"></script>';
     const safe = `<script type="module">
       import('./app.mjs?v=${APP_VERSION}').catch((error) => {

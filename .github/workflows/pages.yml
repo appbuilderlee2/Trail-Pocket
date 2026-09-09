@@ -58,6 +58,7 @@ jobs:
           const p='dist/index.html';
           let html=fs.readFileSync(p,'utf8');
           html=html.replace(/v\d+\.\d+\.\d+(?:-[\w.]+)?/g,'v'+version).replace(/V\d+\.\d+\.\d+(?:-[\w.]+)?/g,'V'+version);
+          html=html.replace('href="./app.mjs"',`href="./app.mjs?v=${version}"`);
           html=html.replace(
             '<script type="module" src="./app.mjs"></script>',
             `<script type="module">
